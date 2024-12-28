@@ -1,0 +1,20 @@
+{
+  "name": "simple-binance-futures",
+  "version": "1.0.0",
+  "description": "A Javascript connector for Binance Futures. Compatible with Node, Bun, Deno and Google Apps Script.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "npx webpack",
+    "new-order": "node test/test-new-order && exit 1",
+    "reduce-order": "node test/test-reduce-order && exit 1"
+  },
+  "author": "jaimelias",
+  "license": "ISC",
+  "devDependencies": {
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "crypto": "^1.0.1"
+  }
+}
