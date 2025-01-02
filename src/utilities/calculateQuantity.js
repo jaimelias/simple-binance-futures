@@ -1,4 +1,4 @@
-export function calculateQuantity(amountInUSDT, leverage, contractInfo, price) {
+export function calculateQuantity(amountInUSD, leverage, contractInfo, price) {
     const { filters, quantityPrecision } = contractInfo;
 
     // Extract the relevant filters
@@ -11,7 +11,7 @@ export function calculateQuantity(amountInUSDT, leverage, contractInfo, price) {
     const minNotional = parseFloat(minNotionalFilter.notional);
 
     // Calculate initial quantity
-    let quantity = (amountInUSDT * leverage) / price;
+    let quantity = (amountInUSD * leverage) / price;
 
     // Ensure quantity meets precision
     quantity = parseFloat(quantity.toFixed(quantityPrecision));

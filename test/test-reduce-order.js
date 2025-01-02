@@ -21,19 +21,20 @@ import { CREDENTIALS } from "./test-credentials.js"
 
 const STRATEGY = {
   environment: 'testnet',
-  contractName: 'BTCUSDT',
+  symbol: 'BTC',
+  settlementCurrency: 'USDT',
   marginType: 'ISOLATED',
   leverage: 125,
   useServerTime: false,
-  debug: true
+  debug: false
 }
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)
 
 console.log((await exchange.getServerTime()))
 
-const tp = await exchange.createTakeProfitOrder(100000)
-const sl = await exchange.createStopLossOrder(95000)
+const tp = await exchange.createTakeProfitOrder({triggerPrice: 100000, handleExistingOrders: 'REPLACE'})
+const sl = await exchange.createStopLossOrder({triggerPrice: 95000, handleExistingOrders: 'KEEP'})
 
-console.log('sl', sl)
+//console.log('sl', sl)
 console.log('tp', tp)

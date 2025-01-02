@@ -15,7 +15,7 @@ export default class BinanceFutures {
   
       validateStrategy(strategy)
   
-      const {contractName, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false,} = strategy
+      const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false,} = strategy
   
       validateEnvironment(environment)
       validateCredentials(credentials, environment)
@@ -28,7 +28,7 @@ export default class BinanceFutures {
         : `${defaultEndpoints[environment]}/fapi`
   
 
-      this.contractName = contractName
+      this.contractName = `${symbol}${settlementCurrency}`
       this.leverage = leverage
       this.marginType = marginType
       this.useServerTime = useServerTime
@@ -121,18 +121,18 @@ export default class BinanceFutures {
       return await this.fetch('order', 'DELETE', {orderId})
     }
   
-    async createLimitOrder({side, amountInUSDT, entryPrice, handleExistingOrders, expirationInMinutes}) {
+    async createLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes}) {
       
-      return await createLimitOrder({main: this, side, amountInUSDT, entryPrice, handleExistingOrders, expirationInMinutes})
+      return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes})
 
     }
   
-    async createTakeProfitOrder(triggerPrice) {
-        return await createTakeProfitOrder(this, triggerPrice)
+    async createTakeProfitOrder({triggerPrice, handleExistingOrders}) {
+        return await createTakeProfitOrder({main: this, triggerPrice, handleExistingOrders})
     }
   
-    async createStopLossOrder(triggerPrice) {
-      return await createStopLossOrder(this, triggerPrice)
+    async createStopLossOrder({triggerPrice, handleExistingOrders}) {
+      return await createStopLossOrder({main: this, triggerPrice, handleExistingOrders})
     }
   
     async changeMarginType()

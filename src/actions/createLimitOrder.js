@@ -1,13 +1,13 @@
 import { calculateQuantity } from '../utilities/calculateQuantity.js'
 import { validateCreateLimitOrder } from '../utilities/validators.js'
 
-export  const  createLimitOrder = async ({main, side = 'BUY', amountInUSDT, entryPrice, handleExistingOrders = 'ADD', expirationInMinutes = 10}) => {
+export  const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, handleExistingOrders = 'ADD', expirationInMinutes = 10}) => {
   
-    validateCreateLimitOrder({side, amountInUSDT, entryPrice, handleExistingOrders, expirationInMinutes})
+    validateCreateLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes})
     await funcHandleExistingOrders({main, side, entryPrice, handleExistingOrders})
 
     const contractInfo = await main.getContractInfo()
-    const quantity = calculateQuantity(amountInUSDT, main.leverage, contractInfo, entryPrice)
+    const quantity = calculateQuantity(amountInUSD, main.leverage, contractInfo, entryPrice)
 
 
     const payload = {
@@ -44,46 +44,42 @@ export  const  createLimitOrder = async ({main, side = 'BUY', amountInUSDT, entr
 
 const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingOrders}) => {
 
-    if(typeof handleExistingOrders === 'string')
+    const orders = await main.getOrders()
+    const existingOrders = orders.filter(o => o.symbol === main.contractName && o.type === 'LIMIT' && o.side === side && o.reduceOnly === false && o.priceProtect === false && o.closePosition === false && o.goodTillDate)
+
+    if(existingOrders.length > 0)
     {
-        handleExistingOrders = handleExistingOrders.toUpperCase()
-        const orders = await main.getOrders()
-        const existingOrders = orders.filter(o => o.symbol === main.contractName && o.type === 'LIMIT' && o.side === side && o.reduceOnly === false && o.priceProtect === false && o.closePosition === false && o.goodTillDate)
-
-        if(existingOrders.length > 0)
+        //KEEP stops the creation of new orders if there are existing orders
+        if(handleExistingOrders === 'KEEP')
         {
-            //KEEP stops the creation of new orders if there are existing orders
-            if(handleExistingOrders === 'KEEP')
-            {
-                if(main.debug)
-                {
-                console.log(`New order (entryPrice=${entryPrice}, side=${side}) not executed. Found existing orders:`, existingOrders)
-                }
-                return false;
-            }
-            //ERROR throws error if existing orders are found
-            else if(handleExistingOrders === 'ERROR')
-            {
-            throw Error(`New order (entryPrice=${entryPrice}, side=${side}) not executed. Found duplicated orders: ${JSON.stringify(existingOrders)}`)
-            }
-            //REPLACE cancels existig orders and creates a new one
-            else if(handleExistingOrders === 'REPLACE')
-            {
-
-            const cancelMultipleOrders = await main.cancelMultipleOrders(existingOrders)
-
             if(main.debug)
             {
-                console.log('cancelMultipleOrders', cancelMultipleOrders)
+            console.log(`New order (entryPrice=${entryPrice}, side=${side}) not executed. Found existing orders:`, existingOrders)
             }
-            }
-            //ADD submits new order even if there are existing orders
-            else if(handleExistingOrders === 'ADD')
+            return false;
+        }
+        //ERROR throws error if existing orders are found
+        else if(handleExistingOrders === 'ERROR')
+        {
+        throw Error(`New order (entryPrice=${entryPrice}, side=${side}) not executed. Found duplicated orders: ${JSON.stringify(existingOrders)}`)
+        }
+        //REPLACE cancels existig orders and creates a new one
+        else if(handleExistingOrders === 'REPLACE')
+        {
+
+        const cancelMultipleOrders = await main.cancelMultipleOrders(existingOrders)
+
+        if(main.debug)
+        {
+            console.log('cancelMultipleOrders', cancelMultipleOrders)
+        }
+        }
+        //ADD submits new order even if there are existing orders
+        else if(handleExistingOrders === 'ADD')
+        {
+            if(main.debug)
             {
-                if(main.debug)
-                {
-                    console.log('Existing orders found. Pushing new order without deleting existing orders.')
-                }
+                console.log('Existing orders found. Pushing new order without deleting existing orders.')
             }
         }
     }

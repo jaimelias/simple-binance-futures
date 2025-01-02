@@ -1,4 +1,6 @@
-export const createTakeProfitOrder = async (main, triggerPrice) => {
+import { validateReduceOrders } from "../utilities/validators.js"
+
+export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingOrders}) => {
     /* 
       Payload for a BUY position:
       {
@@ -16,6 +18,11 @@ export const createTakeProfitOrder = async (main, triggerPrice) => {
       }
     */
 
+    validateReduceOrders(triggerPrice, handleExistingOrders)
+
+    if(handleExistingOrders === 'KEEP') return false
+
+    const type = 'TAKE_PROFIT_MARKET'
     const positions = await main.getPositions();
     const position = positions.find(o => o.symbol === main.contractName && parseFloat(o.positionAmt) !== 0);
 
@@ -23,19 +30,7 @@ export const createTakeProfitOrder = async (main, triggerPrice) => {
         throw new Error(`No open position found for ${main.contractName}`);
     }
 
-    const orders = await main.getOrders();
-    const order = orders.find(o => o.origType === 'TAKE_PROFIT_MARKET')
-
-    if(order)
-    {
-      const canceledOrder = await main.cancelOrder(order)
-
-      if(main.debug)
-      {
-        console.log(`createTakeProfitOrder canceled order`, canceledOrder)
-      }
-    }
-
+    await funcHandleExistingReduceOrders({main, handleExistingOrders, type})
    
     const { entryPrice, positionAmt } = position;
      const side = (parseFloat(positionAmt) > 0) ? 'BUY' : 'SELL'
@@ -55,7 +50,7 @@ export const createTakeProfitOrder = async (main, triggerPrice) => {
         symbol: main.contractName,
         side: side === 'BUY' ? 'SELL' : 'BUY',
         positionSide: 'BOTH',
-        type: 'TAKE_PROFIT_MARKET',
+        type,
         timeInForce: 'GTE_GTC',
         quantity: 0, // Close entire position
         stopPrice: adjustedStopPrice,
@@ -73,4 +68,33 @@ export const createTakeProfitOrder = async (main, triggerPrice) => {
     
 
     return (await main.fetch('order', 'POST', payload));
+}
+
+
+const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type}) => {
+
+
+  if(handleExistingOrders === 'KEEP')
+  {
+    return true
+  }
+  else if(handleExistingOrders === 'ERROR')
+  {
+    throw new Error('New "take profit" order not execute because of an existing "take profit" order.')
+  }
+
+  const orders = await main.getOrders()
+  const order = orders.find(o => o.origType === type)
+
+  if(order)
+  {
+    const canceledOrder = await main.cancelOrder(order)
+
+    if(main.debug)
+    {
+      console.log(`createTakeProfitOrder canceled order`, canceledOrder)
+    }
+  }
+
+
 }

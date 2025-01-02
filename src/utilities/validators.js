@@ -35,15 +35,13 @@ export const validateStrategy = (strategy) => {
       throw new Error('Invalid "environment" property. Only "testnet" and "production" are accepted.')
     }
   
-    if (!strategy.hasOwnProperty('contractName')) {
-      throw new Error('Missing "contractName" property in strategy object.')
+    if (!strategy.symbol) {
+      throw new Error('Invalid "symbol" property in strategy object.')
     }
-  
-    if (
-      typeof strategy.contractName !== 'string' || 
-      !strategy.contractName.endsWith('USDT')
-    ) {
-      throw new Error('Invalid "contractName". Only USD-M contracts are supported (e.g., "BTCUSDT").');
+
+    if(!strategy.settlementCurrency)
+    {
+      throw new Error('Invalid "symbol" property in strategy object.')
     }
   
     if (!strategy.hasOwnProperty('leverage')) {
@@ -81,14 +79,14 @@ export const validateStrategy = (strategy) => {
   }
 
 
-export const validateCreateLimitOrder = ({side, amountInUSDT, entryPrice, handleExistingOrders, expirationInMinutes}) => {
+export const validateCreateLimitOrder = ({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes}) => {
     if(!side || !['BUY', 'SELL'].includes(side))
         {
             throw new Error('Invalid or missing property "side" in createLimitOrder.');
         }
-    if(typeof amountInUSDT !== 'number' || amountInUSDT <= 0)
+    if(typeof amountInUSD !== 'number' || amountInUSD <= 0)
     {
-        throw new Error('Missing or invalid "amountInUSDT" in createLimitOrder. "amountInUSDT" must be a positive number.');
+        throw new Error('Missing or invalid "amountInUSD" in createLimitOrder. "amountInUSD" must be a positive number.');
     }
 
     if(typeof entryPrice !== 'number' || entryPrice <= 0)
@@ -104,7 +102,7 @@ export const validateCreateLimitOrder = ({side, amountInUSDT, entryPrice, handle
         }
         else
         {
-            throw new Error('Invalid "expirationInMinutes" in createLimitOrder. "expirationInMinutes" must be a positive number larger than or equal to 10.');
+            throw new Error('Invalid "expirationInMinutes" in createLimitOrder. "expirationInMinutes" must be a positive number greater than or equal to 10.');
         }
     }
 
@@ -113,3 +111,23 @@ export const validateCreateLimitOrder = ({side, amountInUSDT, entryPrice, handle
         throw new Error('Invalid "handleExistingOrders" property in "createLimitOrder". Only "KEEP", "ERROR", "REPLACE", and "ADD" strings are supported. Defaults to "ADD".');
     }
 } 
+
+
+export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
+
+
+  if(typeof triggerPrice === 'number' && triggerPrice >= 10)
+  {
+      //do nothing
+  }
+  else
+  {
+      throw new Error('Invalid "triggerPrice" property in createStopLossOrder or createTakeProfitOrder. "triggerPrice" must be a positive number greater than 0.')
+  }
+
+  if(!handleExistingOrders || !['KEEP', 'ERROR', 'REPLACE'].includes(handleExistingOrders))
+  {
+    throw new Error('Invalid "handleExistingOrders" property in createStopLossOrder or createTakeProfitOrder. Only "KEEP", "ERROR", and "REPLACE" values are accepted.')
+  }
+
+}

@@ -22,7 +22,8 @@ import { CREDENTIALS } from "./test-credentials.js"
 
 const STRATEGY = {
   environment: 'testnet',
-  contractName: 'BTCUSDT',
+  symbol: 'BTC',
+  settlementCurrency: 'USDT',
   marginType: 'ISOLATED',
   leverage: 125,
   useServerTime: false,
@@ -35,7 +36,7 @@ console.log((await exchange.getServerTime()))
 
 const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 
-  amountInUSDT: 40, 
+  amountInUSD: 40, 
   entryPrice: 90000,
   decimals: 3,
   expirationInMinutes: 10,
@@ -44,7 +45,3 @@ const createLimitOrder = await exchange.createLimitOrder({
 
 
 console.log('createLimitOrder', createLimitOrder)
-
-const tp = await exchange.createTakeProfitOrder(100000)
-
-console.log(tp)
