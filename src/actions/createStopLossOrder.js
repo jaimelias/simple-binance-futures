@@ -1,5 +1,24 @@
 import { validateReduceOrders } from "../utilities/validators.js"
 
+/**
+ * Creates a stop-loss market order for an existing position.
+ *
+ * @async
+ * @function createStopLossOrder
+ * @param {Object} params - The parameters object.
+ * @param {Object} params.main - The main context object, providing methods like `getPositions`, `getContractInfo`, and `fetch`.
+ * @param {number} params.triggerPrice - The price at which the stop-loss order will be triggered.
+ * @param {('KEEP' | 'ERROR' | 'REPLACE')} [params.handleExistingOrders='REPLACE'] - Strategy to handle existing stop-loss orders:
+ *   - **KEEP**: Retain existing orders and skip creating a new one.
+ *   - **ERROR**: Throw an error if an existing order is found.
+ *   - **REPLACE**: Cancel existing orders before creating a new one.
+ * @returns {Promise<Object>} A promise that resolves to the response from creating the stop-loss order.
+ * @throws Will throw an error if:
+ *   - No open position is found for the specified contract.
+ *   - The provided `triggerPrice` is invalid for the position.
+ *   - An existing stop-loss order is found and `handleExistingOrders` is set to `'ERROR'`.
+ */
+
 export const createStopLossOrder = async({main, triggerPrice, handleExistingOrders = 'REPLACE'}) => {
     /* 
       Payload for a BUY position:

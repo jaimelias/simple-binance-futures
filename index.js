@@ -67,7 +67,7 @@ export default class BinanceFutures {
       return await this.fetch(`positionRisk`, 'GET', { }, 'v3')
     }
   
-    async getBalanceInUSDT(asset = 'USDT') {
+    async getBalance(asset = 'USDT') {
   
       //works fine, needs no change
   

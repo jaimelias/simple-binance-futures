@@ -1,7 +1,27 @@
 import { calculateQuantity } from '../utilities/calculateQuantity.js'
 import { validateCreateLimitOrder } from '../utilities/validators.js'
 
-export  const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, handleExistingOrders = 'ADD', expirationInMinutes = 10}) => {
+/**
+ * Creates a limit order with the specified parameters.
+ *
+ * @async
+ * @function createLimitOrder
+ * @param {Object} params - The parameters object.
+ * @param {Object} params.main - The main context object, providing methods like `getContractInfo`, `fetch`, etc.
+ * @param {('BUY' | 'SELL')} [params.side='BUY'] - The side of the order (e.g., 'BUY' or 'SELL').
+ * @param {number} params.amountInUSD - The USD value for the desired position size.
+ * @param {number} params.entryPrice - The price at which to set the limit order.
+ * @param {('ADD' | 'KEEP' | 'ERROR' | 'REPLACE')} - How to handle existing limit orders if any are found:
+ *   - **ADD**: Adds a new order without cancelling existing ones.
+ *   - **KEEP**: Keeps existing orders and prevents the creation of a new one.
+ *   - **ERROR**: Throws an error if any existing orders are found.
+ *   - **REPLACE**: Cancels existing orders and then creates a new one.
+ * @param {number} [params.expirationInMinutes=10] - The time (in minutes) until the order expires. 
+ *   A minimum of 10.1 minutes is enforced if a value of 10 minutes or less is provided.
+ * @returns {Promise<Object>} A promise that resolves to the response from creating the limit order.
+ */
+
+export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes = 10}) => {
   
     validateCreateLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes})
     await funcHandleExistingOrders({main, side, entryPrice, handleExistingOrders})
