@@ -131,3 +131,41 @@ export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
   }
 
 }
+
+export const validateOhlcv = ({ interval, limit = 500, startTime, endTime }) => {
+  // List of valid intervals
+  const validIntervals = [
+    "1m", "3m", "5m", "15m", "30m", 
+    "1h", "2h", "4h", "6h", "8h", 
+    "12h", "1d", "3d", "1w", "1M"
+  ];
+
+  // Validate interval
+  if (!interval) {
+    throw new Error('"interval" is required.');
+  }
+
+  if (!validIntervals.includes(interval)) {
+    throw new Error(`Invalid "interval". Accepted values are: ${validIntervals.join(", ")}.`);
+  }
+
+  // Validate limit
+  if (typeof limit !== "number" || limit < 1 || limit > 1500) {
+    throw new Error('"limit" must be a number between 1 and 1500 (inclusive).');
+  }
+
+  // If limit is provided, disallow startTime and endTime
+  if (limit && (startTime || endTime)) {
+    throw new Error('"ohlcv" does not accept "limit" together with "startTime" or "endTime".');
+  }
+
+  // If limit is not provided, require both startTime and endTime
+  if (!limit && (!startTime || !endTime)) {
+    throw new Error('"ohlcv" requires either "limit" or both "startTime" and "endTime".');
+  }
+
+  // Optional: Ensure startTime is before endTime if both are provided
+  if (startTime && endTime && new Date(startTime) >= new Date(endTime)) {
+    throw new Error('"startTime" must be earlier than "endTime".');
+  }
+};

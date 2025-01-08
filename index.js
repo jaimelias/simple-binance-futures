@@ -1,8 +1,10 @@
-import { validateCredentials, validateEnvironment, validateStrategy } from './src/utilities/validators.js'
+import { validateCredentials, validateEnvironment, validateStrategy, validateOhlcv } from './src/utilities/validators.js'
 import {getEngine, universalFetch} from './src/utilities/universalFetch.js'
 import { createLimitOrder } from './src/actions/createLimitOrder.js'
 import { createTakeProfitOrder } from './src/actions/createTakeProfitOrder.js'
 import { createStopLossOrder } from './src/actions/createStopLossOrder.js'
+import { millisecondsToDateStr } from './src/utilities/utilities.js'
+
 
 export const defaultEndpoints = {
     testnet: 'https://testnet.binancefuture.com',
@@ -28,6 +30,7 @@ export default class BinanceFutures {
         : `${defaultEndpoints[environment]}/fapi`
   
 
+      this.settlementCurrency = settlementCurrency
       this.contractName = `${symbol}${settlementCurrency}`
       this.leverage = leverage
       this.marginType = marginType
@@ -58,22 +61,22 @@ export default class BinanceFutures {
     // ----------- Example Methods -----------
     async getOrders() {
       //works fine, needs no change
-      return await this.fetch(`openOrders`, 'GET', { });
+      return await this.fetch('openOrders', 'GET', { });
     }
   
     async getPositions() {
   
       //works fine, needs no change
-      return await this.fetch(`positionRisk`, 'GET', { }, 'v3')
+      return await this.fetch('positionRisk', 'GET', { }, 'v3')
     }
   
-    async getBalance(asset = 'USDT') {
+    async getBalance() {
   
       //works fine, needs no change
   
-      const data = await this.fetch(`balance`, 'GET', {}, 'v2');
+      const data = await this.fetch('balance', 'GET', {}, 'v2');
   
-      const findUSDT = data.find(a => a.asset === asset)
+      const findUSDT = data.find(a => a.asset === this.settlementCurrency)
   
       if(typeof findUSDT === 'object')
       {
@@ -139,7 +142,39 @@ export default class BinanceFutures {
     {
       //must close 100% of current position
       
-      return await this.fetch(`marginType`, 'POST', { marginType: this.marginType });
+      return await this.fetch('marginType', 'POST', { marginType: this.marginType });
     }
+
+    async ohlcv({ interval, startTime, endTime, limit }) {
+
+
+      validateOhlcv({ interval, startTime, endTime, limit })
+    
+      // Build query args
+      const args = {
+        interval,
+        ...(limit ? { limit } : { startTime, endTime })
+      };
+    
+      const data = await this.fetch('klines', 'GET', args)
+    
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid response in "ohlcv".')
+      }
+
+      if (!Array.isArray(data[0])) {
+        throw new Error('Invalid response in "ohlcv".')
+      }
+    
+      return data.map(([timestamp, open, high, low, close, volume]) => ({
+        open: parseFloat(open),
+        high: parseFloat(high),
+        low: parseFloat(low),
+        close: parseFloat(close),
+        volume: parseFloat(volume),
+        date: millisecondsToDateStr(timestamp)
+      }))
+    }
+    
   }
   

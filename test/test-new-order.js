@@ -19,7 +19,6 @@ import { CREDENTIALS } from "./test-credentials.js"
 
 */
 
-
 const STRATEGY = {
   environment: 'testnet',
   symbol: 'BTC',
@@ -32,9 +31,10 @@ const STRATEGY = {
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)
 
-console.log((await exchange.getServerTime()))
+console.log((await exchange.ohlcv({interval: '1m', limit: 1})))
 
-const createLimitOrder = await exchange.createLimitOrder({
+
+/* const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 
   amountInUSD: 40, 
   entryPrice: 90000,
@@ -44,4 +44,4 @@ const createLimitOrder = await exchange.createLimitOrder({
 })
 
 
-console.log('createLimitOrder', createLimitOrder)
+console.log('createLimitOrder', createLimitOrder) */
