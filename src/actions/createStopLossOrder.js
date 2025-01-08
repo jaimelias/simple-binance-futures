@@ -19,7 +19,7 @@ import { validateReduceOrders } from "../utilities/validators.js"
  *   - An existing stop-loss order is found and `handleExistingOrders` is set to `'ERROR'`.
  */
 
-export const createStopLossOrder = async({main, triggerPrice, handleExistingOrders = 'REPLACE'}) => {
+export const createStopLossOrder = async({main, triggerPrice, handleExistingOrders = 'REPLACE', positions}) => {
     /* 
       Payload for a BUY position:
       {
@@ -42,7 +42,12 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
     if(handleExistingOrders === 'KEEP') return false
 
     const type = 'STOP_MARKET'
-    const positions = await main.getPositions();
+
+    if(!positions)
+    {
+      positions = await main.getPositions();
+    }
+
     const position = positions.find(o => o.symbol === main.contractName && parseFloat(o.positionAmt) !== 0);
 
     if (!position) {
