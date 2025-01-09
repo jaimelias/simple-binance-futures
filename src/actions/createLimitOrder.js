@@ -58,8 +58,14 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
         payload.timeInForce = 'GTD'
     }
 
+    const response = await main.fetch('order', 'POST', payload)
 
-    return await main.fetch('order', 'POST', payload);
+    if(main.debug)
+    {
+        console.log('createLimitOrder', {payload, response})
+    }
+
+    return response
 }
 
 const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingOrders, orders}) => {

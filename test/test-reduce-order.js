@@ -26,15 +26,13 @@ const STRATEGY = {
   marginType: 'ISOLATED',
   leverage: 125,
   useServerTime: false,
-  debug: false
+  debug: true
 }
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)
 
 console.log((await exchange.getServerTime()))
 
-const tp = await exchange.createTakeProfitOrder({triggerPrice: 100000, handleExistingOrders: 'REPLACE'})
-const sl = await exchange.createStopLossOrder({triggerPrice: 95000, handleExistingOrders: 'KEEP'})
-
-//console.log('sl', sl)
-console.log('tp', tp)
+//await exchange.createTakeProfitOrder({triggerPrice: 90000, handleExistingOrders: 'REPLACE'})
+//await exchange.createStopLossOrder({triggerPrice: 100000, handleExistingOrders: 'REPLACE'})
+await exchange.closePosition({initialSide: 'SELL'})

@@ -51,7 +51,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
     const position = positions.find(o => o.symbol === main.contractName && parseFloat(o.positionAmt) !== 0);
 
     if (!position) {
-        throw new Error(`No open position found for ${main.contractName}`);
+        throw new Error(`No open position found for ${main.contractName} in createTakeProfitOrder`);
     }
 
     await funcHandleExistingReduceOrders({main, handleExistingOrders, type, orders})
@@ -84,14 +84,14 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
         priceProtect: true,
     }
 
+    const response = await main.fetch('order', 'POST', payload)
 
     if(main.debug)
     {
-      console.log('payload createTakeProfitOrder', payload)
+      console.log('payload createTakeProfitOrder', {payload, response})
     }
     
-
-    return (await main.fetch('order', 'POST', payload));
+    return response
 }
 
 
