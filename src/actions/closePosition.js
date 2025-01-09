@@ -1,4 +1,3 @@
-import { throws } from "assert";
 
 export const closePosition = async ({main, positions, initialSide}) => {
 
