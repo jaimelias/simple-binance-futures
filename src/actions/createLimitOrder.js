@@ -21,10 +21,10 @@ import { validateCreateLimitOrder } from '../utilities/validators.js'
  * @returns {Promise<Object>} A promise that resolves to the response from creating the limit order.
  */
 
-export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes = 10}) => {
+export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes = 10, orders}) => {
   
     validateCreateLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes})
-    await funcHandleExistingOrders({main, side, entryPrice, handleExistingOrders})
+    await funcHandleExistingOrders({main, side, entryPrice, handleExistingOrders, orders})
 
     const contractInfo = await main.getContractInfo()
     const quantity = calculateQuantity(amountInUSD, main.leverage, contractInfo, entryPrice)
@@ -62,9 +62,13 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
     return await main.fetch('order', 'POST', payload);
 }
 
-const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingOrders}) => {
+const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingOrders, orders}) => {
 
-    const orders = await main.getOrders()
+    if(!orders)
+    {
+        orders = await main.getOrders()
+    }
+    
     const existingOrders = orders.filter(o => o.symbol === main.contractName && o.type === 'LIMIT' && o.side === side && o.reduceOnly === false && o.priceProtect === false && o.closePosition === false && o.goodTillDate)
 
     if(existingOrders.length > 0)

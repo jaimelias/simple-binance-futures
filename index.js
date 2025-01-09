@@ -124,18 +124,17 @@ export default class BinanceFutures {
       return await this.fetch('order', 'DELETE', {orderId})
     }
   
-    async createLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes}) {
+    async createLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders}) {
       
-      return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes})
-
+      return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders})
     }
   
-    async createTakeProfitOrder({triggerPrice, handleExistingOrders}) {
-        return await createTakeProfitOrder({main: this, triggerPrice, handleExistingOrders})
+    async createTakeProfitOrder({triggerPrice, handleExistingOrders, positions, orders}) {
+        return await createTakeProfitOrder({main: this, triggerPrice, handleExistingOrders, positions, orders})
     }
   
-    async createStopLossOrder({triggerPrice, handleExistingOrders}) {
-      return await createStopLossOrder({main: this, triggerPrice, handleExistingOrders})
+    async createStopLossOrder({triggerPrice, handleExistingOrders, positions, orders}) {
+      return await createStopLossOrder({main: this, triggerPrice, handleExistingOrders, positions, orders})
     }
   
     async changeMarginType()

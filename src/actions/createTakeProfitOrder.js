@@ -19,7 +19,7 @@ import { validateReduceOrders } from "../utilities/validators.js"
  *   - An existing take-profit order is found and `handleExistingOrders` is set to `'ERROR'`.
  */
 
-export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingOrders, positions}) => {
+export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingOrders, positions, orders}) => {
     /* 
       Payload for a BUY position:
       {
@@ -54,7 +54,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
         throw new Error(`No open position found for ${main.contractName}`);
     }
 
-    await funcHandleExistingReduceOrders({main, handleExistingOrders, type})
+    await funcHandleExistingReduceOrders({main, handleExistingOrders, type, orders})
    
     const { entryPrice, positionAmt } = position;
      const side = (parseFloat(positionAmt) > 0) ? 'BUY' : 'SELL'
@@ -95,7 +95,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 }
 
 
-const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type}) => {
+const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type, orders}) => {
 
 
   if(handleExistingOrders === 'KEEP')
@@ -107,7 +107,11 @@ const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type}
     throw new Error('New "take profit" order not execute because of an existing "take profit" order.')
   }
 
-  const orders = await main.getOrders()
+  if(!orders)
+  {
+    orders = await main.getOrders()
+  }
+
   const order = orders.find(o => o.origType === type)
 
   if(order)
