@@ -33,6 +33,6 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)
 
 console.log((await exchange.getServerTime()))
 
-//await exchange.createTakeProfitOrder({triggerPrice: 90000, handleExistingOrders: 'REPLACE'})
-//await exchange.createStopLossOrder({triggerPrice: 100000, handleExistingOrders: 'REPLACE'})
-await exchange.closePosition({initialSide: 'SELL'})
+await exchange.createTakeProfitOrder({triggerPrice: 100000, handleExistingOrders: 'REPLACE'})
+await exchange.createStopLossOrder({triggerPrice: 90000, handleExistingOrders: 'REPLACE'})
+//await exchange.closePosition({initialSide: 'SELL'})

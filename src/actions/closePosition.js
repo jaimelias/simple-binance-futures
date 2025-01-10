@@ -1,10 +1,10 @@
 
-export const closePosition = async ({main, positions, initialSide}) => {
+export const closePosition = async ({main, positions, side}) => {
 
 
-    if(!['SELL', 'BUY'].includes(initialSide))
+    if(!['SELL', 'BUY'].includes(side))
     {
-        throw new Error('Invalid "initialSide" property in closePosition. Only "SELL" or "BUY" buy is accepted.')
+        throw new Error('Invalid "side" property in closePosition. Only "SELL" or "BUY" buy is accepted.')
     }
 
     if(!positions)
@@ -21,8 +21,8 @@ export const closePosition = async ({main, positions, initialSide}) => {
 
         if(positionAmt !== 0)
         {
-            if(positionAmt > 0 && initialSide === 'BUY') return true
-            if(positionAmt < 0 && initialSide === 'SELL') return true
+            if(positionAmt > 0 && side === 'BUY') return true
+            if(positionAmt < 0 && side === 'SELL') return true
         }
 
         return false
@@ -39,7 +39,7 @@ export const closePosition = async ({main, positions, initialSide}) => {
 
     const payload = {
         symbol: main.contractName,
-        side: initialSide === 'BUY' ? 'SELL' : 'BUY',
+        side: side === 'BUY' ? 'SELL' : 'BUY',
         type,
         quantity,
         reduceOnly: true,

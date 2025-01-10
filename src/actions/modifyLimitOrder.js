@@ -1,27 +1,48 @@
-export const modifyLimitOrder = async ({ main, order, entryPrice, side, expirationInMinutes = 10}) => {
+export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirationInMinutes}) => {
     // Validate that price is a number
     if (isNaN(entryPrice) || entryPrice <= 0) {
-        throw new Error('entryPrice must be a positive number.');
+        throw new Error('"entryPrice" must be a positive number.');
     }
 
-    if (isNaN(expirationInMinutes) || expirationInMinutes < 10) {
-        throw new Error('expirationInMinutes must be a positive number greater than 10.');
+    if(expirationInMinutes)
+    {
+        if (isNaN(expirationInMinutes) || expirationInMinutes < 10) {
+            throw new Error('"expirationInMinutes" must be a positive number greater than 10.');
+        }
     }
 
     // Validate that side is "SELL" or "BUY"
     if (!['SELL', 'BUY'].includes(side)) {
-        throw new Error('Side must be either "SELL" or "BUY".');
+        throw new Error('"side" must be either "SELL" or "BUY".');
     }
 
     // Validate that order is an object with the required properties
-    if (!order || typeof order !== 'object') {
-        throw new Error('Order must be a valid object.');
-    }
-    const { orderId, origQty, executedQty, timeInForce } = order;
-    if (!orderId || isNaN(origQty) || isNaN(executedQty)) {
-        throw new Error('Order must contain valid orderId, origQty, and executedQty properties.');
+    if (orders && !Array.isArray(orders)) {
+        throw new Error('"orders" must be a valid array.');
     }
 
+
+    const validSide = or => {
+        const {origQty, executedQty} = or
+        const quantity = parseFloat(origQty) - parseFloat(executedQty);
+
+        if(quantity !== 0)
+        {
+            if(quantity > 0 && side === 'BUY') return true
+            if(quantity < 0 && side === 'SELL') return true
+        }
+
+        return false
+    }
+
+    const order = (Array.isArray(orders))
+    ? orders.find(o => o.symbol === main.contractName && o.type === 'LIMIT' && validSide(o))
+    : false
+
+    const { orderId, origQty, executedQty, timeInForce } = order;
+    if (!orderId || isNaN(origQty) || isNaN(executedQty)) {
+        throw new Error('"order" must contain valid orderId, origQty, and executedQty properties.');
+    }
 
     const type = 'LIMIT'
     // Calculate the remaining quantity

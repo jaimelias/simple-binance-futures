@@ -130,8 +130,8 @@ export default class BinanceFutures {
       return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders})
     }
 
-    async modifyLimitOrder({order, entryPrice, side, expirationInMinutes}) {
-      return await modifyLimitOrder({main: this, order, entryPrice, side, expirationInMinutes})
+    async modifyLimitOrder({orders, entryPrice, side, expirationInMinutes}) {
+      return await modifyLimitOrder({main: this, orders, entryPrice, side, expirationInMinutes})
     }
   
     async createTakeProfitOrder({triggerPrice, handleExistingOrders, positions, orders}) {

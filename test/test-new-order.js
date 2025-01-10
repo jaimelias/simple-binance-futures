@@ -36,12 +36,6 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)
 const orders = await exchange.getOrders()
 
 
-const openedOrder = (Array.isArray(orders))
-    ? orders.find(o => o.symbol === exchange.contractName && o.type === 'LIMIT' && o.status === 'NEW')
-    : false
-
-
-console.log(openedOrder)
 
 /* const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 
@@ -53,6 +47,6 @@ console.log(openedOrder)
 
 
 
-await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95200, order: openedOrder})
+await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95000, orders})
 
 //console.log(await exchange.getOrders())
