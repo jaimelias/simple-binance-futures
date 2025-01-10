@@ -31,17 +31,28 @@ const STRATEGY = {
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)
 
-console.log((await exchange.ohlcv({interval: '1m', limit: 1})))
+//console.log((await exchange.ohlcv({interval: '1m', limit: 1})))
 
+const orders = await exchange.getOrders()
+
+
+const openedOrder = (Array.isArray(orders))
+    ? orders.find(o => o.symbol === exchange.contractName && o.type === 'LIMIT' && o.status === 'NEW')
+    : false
+
+
+console.log(openedOrder)
 
 /* const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 
   amountInUSD: 40, 
   entryPrice: 90000,
-  decimals: 3,
   expirationInMinutes: 10,
   handleExistingOrders: 'REPLACE'
-})
+}) */
 
 
-console.log('createLimitOrder', createLimitOrder) */
+
+await exchange.modifyLimitOrder({side: 'BUY', newPrice: 95200, order: openedOrder})
+
+//console.log(await exchange.getOrders())

@@ -97,12 +97,12 @@ const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingO
         else if(handleExistingOrders === 'REPLACE')
         {
 
-        const cancelMultipleOrders = await main.cancelMultipleOrders(existingOrders)
+            const cancelMultipleOrders = await main.cancelMultipleOrders(existingOrders)
 
-        if(main.debug)
-        {
-            console.log('cancelMultipleOrders', cancelMultipleOrders)
-        }
+            if(main.debug)
+            {
+                console.log('cancelMultipleOrders', cancelMultipleOrders)
+            }
         }
         //ADD submits new order even if there are existing orders
         else if(handleExistingOrders === 'ADD')

@@ -5,6 +5,7 @@ import { createTakeProfitOrder } from './src/actions/createTakeProfitOrder.js'
 import { createStopLossOrder } from './src/actions/createStopLossOrder.js'
 import { millisecondsToDateStr } from './src/utilities/utilities.js'
 import { closePosition } from './src/actions/closePosition.js'
+import { modifyLimitOrder } from './src/actions/modifyLimitOrder.js'
 
 export const defaultEndpoints = {
     testnet: 'https://testnet.binancefuture.com',
@@ -128,6 +129,10 @@ export default class BinanceFutures {
       
       return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders})
     }
+
+    async modifyLimitOrder({order, newPrice, side, expirationInMinutes}) {
+      return await modifyLimitOrder({main: this, order, newPrice, side, expirationInMinutes})
+    }
   
     async createTakeProfitOrder({triggerPrice, handleExistingOrders, positions, orders}) {
         return await createTakeProfitOrder({main: this, triggerPrice, handleExistingOrders, positions, orders})
@@ -174,6 +179,8 @@ export default class BinanceFutures {
         date: millisecondsToDateStr(timestamp)
       }))
     }
+
+
 
     async closePosition({positions, initialSide}){
 
