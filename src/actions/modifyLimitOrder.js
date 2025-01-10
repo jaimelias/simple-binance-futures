@@ -1,7 +1,7 @@
-export const modifyLimitOrder = async ({ main, order, newPrice, side, expirationInMinutes = 10}) => {
+export const modifyLimitOrder = async ({ main, order, entryPrice, side, expirationInMinutes = 10}) => {
     // Validate that price is a number
-    if (isNaN(newPrice) || newPrice <= 0) {
-        throw new Error('newPrice must be a positive number.');
+    if (isNaN(entryPrice) || entryPrice <= 0) {
+        throw new Error('entryPrice must be a positive number.');
     }
 
     if (isNaN(expirationInMinutes) || expirationInMinutes < 10) {
@@ -31,7 +31,7 @@ export const modifyLimitOrder = async ({ main, order, newPrice, side, expiration
     }
 
     // Prepare the payload for the request
-    const payload = { orderId, quantity, price: newPrice, side, type, timeInForce, timeInForce: 'GTC'}
+    const payload = { orderId, quantity, price: entryPrice, side, type, timeInForce, timeInForce: 'GTC'}
 
     if(typeof expirationInMinutes === 'number')
     {

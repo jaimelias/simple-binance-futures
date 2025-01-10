@@ -53,6 +53,6 @@ console.log(openedOrder)
 
 
 
-await exchange.modifyLimitOrder({side: 'BUY', newPrice: 95200, order: openedOrder})
+await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95200, order: openedOrder})
 
 //console.log(await exchange.getOrders())
