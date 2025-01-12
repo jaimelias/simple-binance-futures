@@ -1,4 +1,4 @@
-export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirationInMinutes}) => {
+export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirationInMinutes = 10}) => {
     // Validate that price is a number
     if (isNaN(entryPrice) || entryPrice <= 0) {
         throw new Error('"entryPrice" must be a positive number.');

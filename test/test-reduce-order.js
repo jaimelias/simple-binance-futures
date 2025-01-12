@@ -26,7 +26,7 @@ const STRATEGY = {
   marginType: 'ISOLATED',
   leverage: 125,
   useServerTime: false,
-  debug: true
+  debug: false
 }
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)

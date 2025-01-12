@@ -21,7 +21,7 @@ import { validateCreateLimitOrder } from '../utilities/validators.js'
  * @returns {Promise<Object>} A promise that resolves to the response from creating the limit order.
  */
 
-export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders}) => {
+export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes = 10, orders}) => {
   
     validateCreateLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes})
     await funcHandleExistingOrders({main, side, entryPrice, handleExistingOrders, orders})

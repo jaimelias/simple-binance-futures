@@ -54,7 +54,9 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
         throw new Error(`No open position found for ${main.contractName} in createStopLossOrder`);
     }
 
-    await funcHandleExistingReduceOrders({main, handleExistingOrders, type, orders})
+    const ignoreOrder = await funcHandleExistingReduceOrders({main, handleExistingOrders, type, orders, triggerPrice})
+
+    if(ignoreOrder) return true
 
     const { entryPrice, positionAmt } = position;
     const side = (parseFloat(positionAmt) > 0) ? 'BUY' : 'SELL'
@@ -97,7 +99,7 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
 
 
 
-const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type, orders}) => {
+const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type, orders, triggerPrice}) => {
 
 
   if(handleExistingOrders === 'KEEP')
@@ -115,8 +117,14 @@ const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type,
   }
   const order = orders.find(o => o.origType === type)
 
+
   if(order)
   {
+
+    const stopPrice = parseFloat(order.stopPrice)
+
+    if(stopPrice === triggerPrice) return true
+
     const canceledOrder = await main.cancelOrder(order)
 
     if(main.debug)
@@ -125,5 +133,5 @@ const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type,
     }
   }
 
-
+  return false
 }
