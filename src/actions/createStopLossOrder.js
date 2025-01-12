@@ -39,8 +39,6 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
 
     validateReduceOrders(triggerPrice, handleExistingOrders)
 
-    if(handleExistingOrders === 'KEEP') return false
-
     const type = 'STOP_MARKET'
 
     if(!positions)

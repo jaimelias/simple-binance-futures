@@ -182,9 +182,9 @@ export default class BinanceFutures {
 
 
 
-    async closePosition({positions, initialSide}){
+    async closePosition({positions, side}){
 
-      return await closePosition({main: this, positions, initialSide})
+      return await closePosition({main: this, positions, side})
 
     }
     

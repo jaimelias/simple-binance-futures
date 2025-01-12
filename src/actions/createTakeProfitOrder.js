@@ -39,8 +39,6 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
     validateReduceOrders(triggerPrice, handleExistingOrders)
 
-    if(handleExistingOrders === 'KEEP') return false
-
     const type = 'TAKE_PROFIT_MARKET'
 
     if(!positions)
