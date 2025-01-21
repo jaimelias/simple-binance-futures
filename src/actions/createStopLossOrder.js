@@ -66,7 +66,7 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
 
     // Validate stop price for the given position
     if ((side === 'SELL' && adjustedStopPrice <= parseFloat(entryPrice)) || (side === 'BUY' && adjustedStopPrice >= parseFloat(entryPrice))) {
-        throw new Error(`Invalid stop-loss price for ${side} position.`);
+        throw new Error(`Invalid stop-loss triggerPrice "${triggerPrice}" for ${side} position.`);
     }
 
 

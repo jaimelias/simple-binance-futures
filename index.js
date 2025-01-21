@@ -180,7 +180,9 @@ export default class BinanceFutures {
       }))
     }
 
-
+    async cancelAllOpenedOrders(){
+      return await this.fetch('allOpenOrders', 'DELETE')
+    }
 
     async closePosition({positions, side}){
 

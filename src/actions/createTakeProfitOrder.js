@@ -66,7 +66,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
     // Validate stop price for the given position
     if ((side === 'SELL' && adjustedStopPrice >= parseFloat(entryPrice)) || (side === 'BUY' && adjustedStopPrice <= parseFloat(entryPrice))) {
-        throw new Error(`Invalid take-profit price for ${side} position.`);
+        throw new Error(`Invalid take-profit triggerPrice "${triggerPrice}" for ${side} position.`);
     }
 
 

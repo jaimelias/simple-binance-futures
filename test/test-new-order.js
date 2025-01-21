@@ -36,8 +36,9 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)
 //const orders = await exchange.getOrders()
 
 const positions = await exchange.getPositions()
+const orders = await exchange.getOrders()
 
-console.log(positions)
+console.log(await exchange.cancelAllOpenedOrders())
 
 /* const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 
