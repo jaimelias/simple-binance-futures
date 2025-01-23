@@ -168,4 +168,32 @@ export const validateOhlcv = ({ interval, limit = 500, startTime, endTime }) => 
   if (startTime && endTime && new Date(startTime) >= new Date(endTime)) {
     throw new Error('"startTime" must be earlier than "endTime".');
   }
+}
+
+export const validateCallbacks = (callbacks = {}, engine) => {
+  if (typeof callbacks !== 'object') {
+    throw new Error(`Invalid type: "callbacks" property must be an object.`);
+  }
+
+  if (callbacks.hasOwnProperty('logger') && typeof callbacks.logger !== 'function') {
+    throw new Error(`Invalid type: "callbacks.logger" must be a function.`);
+  }
+
+  if (engine !== 'google-app-script') {
+    if (callbacks.hasOwnProperty('fetch')) {
+      if (typeof callbacks.fetch !== 'function' && typeof callbacks.fetch !== 'object') {
+        throw new Error(`Invalid type: "callbacks.fetch" must be a standard Fetch API callback.`);
+      }
+    } else {
+      throw new Error(`The current engine "${engine}" requires "fetch" to be provided as a parameter in callbacks.`);
+    }
+
+    if (callbacks.hasOwnProperty('crypto')) {
+      if (typeof callbacks.crypto !== 'function' && typeof callbacks.crypto !== 'object') {
+        throw new Error(`Invalid type: "callbacks.crypto" must be a standard Web Crypto API callback. Use globalThis.crypto or require('node:crypto').webcrypto or import crypto from 'node:crypto' to access this module.`);
+      }
+    } else {
+      throw new Error(`The current engine "${engine}" requires "crypto" to be provided as a parameter in callbacks.`);
+    }
+  }
 };

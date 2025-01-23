@@ -1,4 +1,4 @@
-import { validateCredentials, validateEnvironment, validateStrategy, validateOhlcv } from './src/utilities/validators.js'
+import { validateCredentials, validateEnvironment, validateStrategy, validateOhlcv, validateCallbacks } from './src/utilities/validators.js'
 import {getEngine, universalFetch} from './src/utilities/universalFetch.js'
 import { createLimitOrder } from './src/actions/createLimitOrder.js'
 import { createTakeProfitOrder } from './src/actions/createTakeProfitOrder.js'
@@ -14,9 +14,16 @@ export const defaultEndpoints = {
 
 export default class BinanceFutures {
 
-    constructor(credentials, strategy) {
+    constructor(credentials, strategy, callbacks) {
   
+
+      this.engine = getEngine()
+
+      validateCallbacks(callbacks, this.engine)
       validateStrategy(strategy)
+
+
+      this.callbacks = callbacks
   
       const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false,} = strategy
   
@@ -39,10 +46,8 @@ export default class BinanceFutures {
       this.environment = environment
       this.debug = debug
       
-      this.engine = getEngine()
+      
       this.cache = {}
-      //await this.changeLeverage()
-      //await this.changeMarginType()
     }
   
   

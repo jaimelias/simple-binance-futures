@@ -13,11 +13,5 @@ export default {
   entry,
   output,
   mode: 'production',
-  target: 'web',
-  resolve: {
-    fallback: {
-      'crypto': false,
-      'fetch': false
-    }
-  }
+  target: 'web'
 }

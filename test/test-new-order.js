@@ -1,6 +1,6 @@
 import BinanceFutures from "../index.js"
 import { CREDENTIALS } from "./test-credentials.js"
-
+import crypto from 'node:crypto'
 
 /* 
 
@@ -29,16 +29,18 @@ const STRATEGY = {
   debug: true
 }
 
-const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)
+const CALLBACKS = {fetch, crypto}
+
+const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
 //console.log((await exchange.ohlcv({interval: '1m', limit: 1})))
 
 //const orders = await exchange.getOrders()
 
 const positions = await exchange.getPositions()
-const orders = await exchange.getOrders()
+//const orders = await exchange.getOrders()
 
-console.log(await exchange.cancelAllOpenedOrders())
+console.log(positions)
 
 /* const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 

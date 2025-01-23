@@ -1,4 +1,3 @@
-import crypto from 'crypto'
 
 export const getSignature = (main, queryString) => {
     
@@ -17,27 +16,11 @@ export const getSignature = (main, queryString) => {
       return signatureHex;
     }
 
-    let nodeCrypto
-
-    if(typeof crypto === 'object')
-    {
-        nodeCrypto = crypto
-    }
-    else
-    {
-        if(typeof main.nodeCrypto === 'object')
-        {
-            nodeCrypto = main.nodeCrypto
-        }
-        else
-        {
-          throw new Error('"crypto" library is not available in your global scope. you can pass "crypto" using the property "nodeCrypto" in your strategy')
-        }
-    }
+    const {crypto: standardCrypto} = main.callbacks
   
     // Otherwise, use crypto from Node / Deno / CF / Bun, etc.
     // Node’s built-in crypto usage example:
-    const hmac = nodeCrypto.createHmac('sha256', API_SECRET)
+    const hmac = standardCrypto.createHmac('sha256', API_SECRET)
     hmac.update(queryString)
     return hmac.digest('hex')
   }

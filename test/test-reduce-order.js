@@ -1,5 +1,6 @@
 import BinanceFutures from "../index.js"
 import { CREDENTIALS } from "./test-credentials.js"
+import crypto from 'node:crypto'
 
 
 /* 
@@ -29,10 +30,11 @@ const STRATEGY = {
   debug: false
 }
 
-const exchange = new BinanceFutures(CREDENTIALS, STRATEGY)
+const CALLBACKS = {fetch, crypto}
+const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
 console.log((await exchange.getServerTime()))
 
-await exchange.createTakeProfitOrder({triggerPrice: 100000, handleExistingOrders: 'REPLACE'})
+await exchange.createTakeProfitOrder({triggerPrice: 109000, handleExistingOrders: 'REPLACE'})
 await exchange.createStopLossOrder({triggerPrice: 90000, handleExistingOrders: 'REPLACE'})
-//await exchange.closePosition({initialSide: 'SELL'})
+//await exchange.closePosition({side: 'SELL'})
