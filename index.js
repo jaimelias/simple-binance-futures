@@ -6,6 +6,7 @@ import { createStopLossOrder } from './src/actions/createStopLossOrder.js'
 import { millisecondsToDateStr } from './src/utilities/utilities.js'
 import { closePosition } from './src/actions/closePosition.js'
 import { modifyLimitOrder } from './src/actions/modifyLimitOrder.js'
+import ErrorHandler from './src/utilities/ErrorHandler.js'
 
 export const defaultEndpoints = {
     testnet: 'https://testnet.binancefuture.com',
@@ -16,7 +17,6 @@ export default class BinanceFutures {
 
     constructor(credentials, strategy, callbacks) {
   
-
       this.engine = getEngine()
 
       validateCallbacks(callbacks, this.engine)
@@ -24,6 +24,8 @@ export default class BinanceFutures {
 
 
       this.callbacks = callbacks
+
+      this.errorHandler = new ErrorHandler(this.callbacks)
   
       const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false,} = strategy
   
@@ -53,7 +55,7 @@ export default class BinanceFutures {
   
     //endpoint, method = 'GET', payload = {}, version = 'v1'
     async fetch(endpoint, method = 'GET', payload = {}, version = 'v1') {
-        
+      
       return await universalFetch(this, endpoint, method, payload, version)
        
     }
@@ -61,137 +63,187 @@ export default class BinanceFutures {
   
     async getServerTime()
     {
-      return (await this.fetch('time', 'GET', {})).serverTime
+      return this.errorHandler.init(async () => {
+        return (await this.fetch('time', 'GET', {})).serverTime
+      })
+      
     }
   
     // ----------- Example Methods -----------
     async getOrders() {
-      //works fine, needs no change
-      return await this.fetch('openOrders', 'GET', { });
+
+      return this.errorHandler.init(async () => {
+        return await this.fetch('openOrders', 'GET', { });
+      })
     }
   
     async getPositions() {
   
-      //works fine, needs no change
-      return await this.fetch('positionRisk', 'GET', { }, 'v3')
+      return this.errorHandler.init(async () => {
+        return await this.fetch('positionRisk', 'GET', { }, 'v3')
+      })
+
     }
   
     async getBalance() {
   
-      //works fine, needs no change
-  
-      const data = await this.fetch('balance', 'GET', {}, 'v2');
-  
-      const findUSDT = data.find(a => a.asset === this.settlementCurrency)
-  
-      if(typeof findUSDT === 'object')
-      {
-        return findUSDT.balance
-      }
-      return 0
+      return this.errorHandler.init(async () => {
+    
+        const data = await this.fetch('balance', 'GET', {}, 'v2');
+    
+        const findUSDT = data.find(a => a.asset === this.settlementCurrency)
+    
+        if(typeof findUSDT === 'object')
+        {
+          return findUSDT.balance
+        }
+        return 0
+      })
+
     }
   
     async getContractInfo() {
       
-      const {contractName} = this
-      const cacheKey = `contract_${contractName}`
-  
-      if(this.cache.hasOwnProperty(cacheKey)) return this.cache[cacheKey]
-  
-      const data = await this.fetch(`exchangeInfo`, 'GET', { })
-  
-      const findContract = data.symbols.find(o => o.symbol === contractName)
-  
-      if(typeof findContract === 'undefined')
-      {
-        throw new Error(`contract ${contractName} not fund`)
-      }
-  
-      this.cache[cacheKey] = findContract
-  
-      return findContract;
+      return this.errorHandler.init(async () => {
+        const {contractName} = this
+        const cacheKey = `contract_${contractName}`
+    
+        if(this.cache.hasOwnProperty(cacheKey)) return this.cache[cacheKey]
+    
+        const data = await this.fetch(`exchangeInfo`, 'GET', { })
+    
+        const findContract = data.symbols.find(o => o.symbol === contractName)
+    
+        if(typeof findContract === 'undefined')
+        {
+          throw new Error(`contract ${contractName} not fund`)
+        }
+    
+        this.cache[cacheKey] = findContract
+    
+        return findContract;
+      })
+    
     }
   
     async changeLeverage()
     {
-      return await this.fetch('leverage', 'POST', {leverage: this.leverage})
+      return this.errorHandler.init(async () => {
+        return await this.fetch('leverage', 'POST', {leverage: this.leverage})
+      })
+
     }
   
   
     async cancelMultipleOrders(orders)
     {
-      const orderIdList = JSON.stringify(orders.map(o => o.orderId))
-      return await this.fetch('batchOrders', 'DELETE', {orderIdList})
+      return this.errorHandler.init(async () => {
+        const orderIdList = JSON.stringify(orders.map(o => o.orderId))
+        return await this.fetch('batchOrders', 'DELETE', {orderIdList})
+      })
+
     }
   
     async cancelOrder(payload)
     {
-      const {orderId} = payload
-      return await this.fetch('order', 'DELETE', {orderId})
+      return this.errorHandler.init(async () => {
+        const {orderId} = payload
+        return await this.fetch('order', 'DELETE', {orderId})
+      })
+
     }
   
     async createLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders}) {
       
-      return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders})
+      return this.errorHandler.init(async () => {
+        return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders})
+      })
+
     }
 
     async modifyLimitOrder({orders, entryPrice, side, expirationInMinutes}) {
-      return await modifyLimitOrder({main: this, orders, entryPrice, side, expirationInMinutes})
+
+      return this.errorHandler.init(async () => {
+        return await modifyLimitOrder({main: this, orders, entryPrice, side, expirationInMinutes})
+      })
+
     }
   
     async createTakeProfitOrder({triggerPrice, handleExistingOrders, positions, orders}) {
+
+      return this.errorHandler.init(async () => {
         return await createTakeProfitOrder({main: this, triggerPrice, handleExistingOrders, positions, orders})
+      })
+
     }
   
     async createStopLossOrder({triggerPrice, handleExistingOrders, positions, orders}) {
-      return await createStopLossOrder({main: this, triggerPrice, handleExistingOrders, positions, orders})
+
+      return this.errorHandler.init(async () => {
+        return await createStopLossOrder({main: this, triggerPrice, handleExistingOrders, positions, orders})
+      })
+
     }
   
     async changeMarginType()
     {
-      //must close 100% of current position
-      
-      return await this.fetch('marginType', 'POST', { marginType: this.marginType });
+
+      return this.errorHandler.init(async () => {
+        //must close 100% of current position
+        
+        return await this.fetch('marginType', 'POST', { marginType: this.marginType });
+      })
     }
 
     async ohlcv({ interval, startTime, endTime, limit }) {
 
 
-      validateOhlcv({ interval, startTime, endTime, limit })
-    
-      // Build query args
-      const args = {
-        interval,
-        ...(limit ? { limit } : { startTime, endTime })
-      };
-    
-      const data = await this.fetch('klines', 'GET', args)
-    
-      if (!Array.isArray(data)) {
-        throw new Error('Invalid response in "ohlcv".')
-      }
+      return this.errorHandler.init(async () => {
+        validateOhlcv({ interval, startTime, endTime, limit })
+      
+        // Build query args
+        const args = {
+          interval,
+          ...(limit ? { limit } : { startTime, endTime })
+        };
+      
+        const data = await this.fetch('klines', 'GET', args)
+      
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid response in "ohlcv".')
+        }
 
-      if (!Array.isArray(data[0])) {
-        throw new Error('Invalid response in "ohlcv".')
-      }
-    
-      return data.map(([timestamp, open, high, low, close, volume]) => ({
-        open: parseFloat(open),
-        high: parseFloat(high),
-        low: parseFloat(low),
-        close: parseFloat(close),
-        volume: parseFloat(volume),
-        date: millisecondsToDateStr(timestamp)
-      }))
+        if (!Array.isArray(data[0])) {
+          throw new Error('Invalid response in "ohlcv".')
+        }
+      
+        return data.map(([timestamp, open, high, low, close, volume]) => ({
+          open: parseFloat(open),
+          high: parseFloat(high),
+          low: parseFloat(low),
+          close: parseFloat(close),
+          volume: parseFloat(volume),
+          date: millisecondsToDateStr(timestamp)
+        }))
+      })
+
     }
 
     async cancelAllOpenedOrders(){
-      return await this.fetch('allOpenOrders', 'DELETE')
+
+      return this.errorHandler.init(async () => {
+        return await this.fetch('allOpenOrders', 'DELETE')
+      })
+
+      
     }
 
     async closePosition({positions, side}){
 
-      return await closePosition({main: this, positions, side})
+
+      return this.errorHandler.init(async () => {
+        return await closePosition({main: this, positions, side})
+      })
 
     }
     

@@ -175,8 +175,8 @@ export const validateCallbacks = (callbacks = {}, engine) => {
     throw new Error(`Invalid type: "callbacks" property must be an object.`);
   }
 
-  if (callbacks.hasOwnProperty('logger') && typeof callbacks.logger !== 'function') {
-    throw new Error(`Invalid type: "callbacks.logger" must be a function.`);
+  if (callbacks.hasOwnProperty('errorLogger') && typeof callbacks.errorLogger !== 'function') {
+    throw new Error(`Invalid type: "callbacks.errorLogger" must be a callback function.`);
   }
 
   if (engine !== 'google-app-script') {

@@ -2,7 +2,6 @@ import BinanceFutures from "../index.js"
 import { CREDENTIALS } from "./test-credentials.js"
 import crypto from 'node:crypto'
 
-
 /* 
 
   CREDENTIALS = {
@@ -30,7 +29,9 @@ const STRATEGY = {
   debug: false
 }
 
-const CALLBACKS = {fetch, crypto}
+const errorLogger = message => console.error(message)
+
+const CALLBACKS = {fetch, crypto, errorLogger}
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
 console.log((await exchange.getServerTime()))

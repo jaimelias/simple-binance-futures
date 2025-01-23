@@ -29,7 +29,14 @@ const STRATEGY = {
   debug: true
 }
 
-const CALLBACKS = {fetch, crypto}
+const errorLogger = message => {
+  console.error(message)
+  console.error(message)
+  console.error(message)
+  console.error(message)
+}
+
+const CALLBACKS = {fetch, crypto, errorLogger}
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
