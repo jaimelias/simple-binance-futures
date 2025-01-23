@@ -18,7 +18,6 @@ export default class BinanceFutures {
     constructor(credentials, strategy, callbacks) {
   
       this.engine = getEngine()
-
       validateCallbacks(callbacks, this.engine)
       validateStrategy(strategy)
 
