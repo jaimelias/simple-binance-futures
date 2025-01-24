@@ -13,9 +13,6 @@ export function calculateQuantity(amountInUSD, leverage, contractInfo, price) {
     // Calculate initial quantity
     let quantity = (amountInUSD * leverage) / price;
 
-    // Ensure quantity meets precision
-    quantity = parseFloat(quantity.toFixed(quantityPrecision));
-
     // Ensure quantity is within limits
     if (quantity < minQty) {
         throw new Error(`Quantity ${quantity} is below the minimum allowed: ${minQty}`);
@@ -32,6 +29,9 @@ export function calculateQuantity(amountInUSD, leverage, contractInfo, price) {
     if (notionalValue < minNotional) {
         throw new Error(`Notional value ${notionalValue} is below the minimum allowed: ${minNotional}`);
     }
+
+    // Ensure quantity meets precision
+    quantity = parseFloat(quantity.toFixed(quantityPrecision));
 
     return quantity;
 }

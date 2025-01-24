@@ -40,14 +40,18 @@ const CALLBACKS = {fetch, crypto, errorLogger}
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
+console.log(JSON.stringify(await exchange.getContractInfo()))
+
 //console.log((await exchange.ohlcv({interval: '1m', limit: 1})))
 
 //const orders = await exchange.getOrders()
 
-const positions = await exchange.getPositions()
+//await exchange.cancelAllOpenedOrders()
+
+//const positions = await exchange.getPositions()
 //const orders = await exchange.getOrders()
 
-console.log(positions)
+//console.log(positions)
 
 /* const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 

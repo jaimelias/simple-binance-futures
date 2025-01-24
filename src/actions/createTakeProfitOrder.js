@@ -97,16 +97,6 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
 const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type, orders, triggerPrice}) => {
 
-
-  if(handleExistingOrders === 'KEEP')
-  {
-    return true
-  }
-  else if(handleExistingOrders === 'ERROR')
-  {
-    throw new Error('New "take profit" order not execute because of an existing "take profit" order.')
-  }
-
   if(!orders)
   {
     orders = await main.getOrders()
@@ -117,6 +107,15 @@ const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type,
   if(order)
   {
 
+    if(handleExistingOrders === 'KEEP')
+    {
+      return true
+    }
+    else if(handleExistingOrders === 'ERROR')
+    {
+      throw new Error('New "take profit" order not execute because of an existing "take profit" order.')
+    }
+    
     const stopPrice = parseFloat(order.stopPrice)
 
     if(stopPrice === triggerPrice) return true
