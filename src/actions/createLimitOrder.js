@@ -65,6 +65,11 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
         console.log('createLimitOrder', {payload, response})
     }
 
+    if(!response.hasOwnProperty('orderId'))
+    {
+        throw new Error(`Error in createLimitOrder: ${JSON.stringify(response)}`)
+    }
+
     return response
 }
 

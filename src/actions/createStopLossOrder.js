@@ -20,22 +20,7 @@ import { validateReduceOrders } from "../utilities/validators.js"
  */
 
 export const createStopLossOrder = async({main, triggerPrice, handleExistingOrders = 'REPLACE', positions, orders}) => {
-    /* 
-      Payload for a BUY position:
-      {
-          "symbol": "BTCUSDT",
-          "side": "SELL",
-          "positionSide": "BOTH",
-          "type": "STOP_MARKET",
-          "timeInForce": "GTE_GTC",
-          "quantity": 0,
-          "stopPrice": "96000",
-          "workingType": "MARK_PRICE",
-          "closePosition": true,
-          "placeType": "position",
-          "priceProtect": true
-      }
-    */
+
 
     validateReduceOrders(triggerPrice, handleExistingOrders)
 
@@ -90,6 +75,11 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
     if(main.debug)
     {
       console.log('createStopLossOrder', {payload, response})
+    }
+
+    if(!response.hasOwnProperty('orderId'))
+    {
+        throw new Error(`Error in createStopLossOrder: ${JSON.stringify(response)}`)
     }
     
     return response

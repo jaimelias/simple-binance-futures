@@ -53,15 +53,13 @@ console.log(JSON.stringify(await exchange.getContractInfo()))
 
 //console.log(positions)
 
-/* const createLimitOrder = await exchange.createLimitOrder({
+ const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 
   amountInUSD: 40, 
   entryPrice: 90000,
   expirationInMinutes: 10,
   handleExistingOrders: 'REPLACE'
-}) */
-
-
+}) 
 
 //await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95000, orders})
 

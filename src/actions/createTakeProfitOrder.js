@@ -90,6 +90,11 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
     {
       console.log('payload createTakeProfitOrder', {payload, response})
     }
+
+    if(!response.hasOwnProperty('orderId'))
+    {
+        throw new Error(`Error in createStopLossOrder: ${JSON.stringify(response)}`)
+    }
     
     return response
 }
