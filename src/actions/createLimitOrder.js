@@ -29,12 +29,16 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
     const contractInfo = await main.getContractInfo()
     const quantity = calculateQuantity(amountInUSD, main.leverage, contractInfo, entryPrice)
 
+    const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
+
+    entryPrice = Math.round(entryPrice / tickSize) * tickSize;
+
 
     const payload = {
         side,
         type: 'LIMIT',
         quantity,
-        price: entryPrice.toFixed(contractInfo.pricePrecision),
+        price,
         timeInForce: 'GTC'
     }
 
