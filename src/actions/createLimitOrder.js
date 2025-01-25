@@ -34,7 +34,7 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
         side,
         type: 'LIMIT',
         quantity,
-        price: entryPrice,
+        price: entryPrice.toFixed(contractInfo.pricePrecision),
         timeInForce: 'GTC'
     }
 
