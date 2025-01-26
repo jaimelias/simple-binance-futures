@@ -39,7 +39,8 @@ export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirat
     ? orders.find(o => o.symbol === main.contractName && o.type === 'LIMIT' && validSide(o))
     : false
 
-    const { orderId, origQty, executedQty, timeInForce } = order;
+    const { orderId, origQty, executedQty, timeInForce, price: prevEntryPrice } = order;
+
     if (!orderId || isNaN(origQty) || isNaN(executedQty)) {
         throw new Error('"order" must contain valid orderId, origQty, and executedQty properties.');
     }
@@ -53,8 +54,21 @@ export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirat
 
     const contractInfo = await main.getContractInfo()
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
-    const adjustedEntryPrice = parseFloat((Math.round(entryPrice / tickSize) * tickSize).toFixed(contractInfo.pricePrecision));
 
+    const adjustPricePrecision = p => {
+        p = parseFloat(p)
+
+        return parseFloat((Math.round(p / tickSize) * tickSize).toFixed(contractInfo.pricePrecision))
+    }
+
+    const adjustedEntryPrice = adjustPricePrecision(entryPrice);
+    const prevAdjustedEntryPrice = adjustPricePrecision(prevEntryPrice);
+
+    if(adjustedEntryPrice === prevAdjustedEntryPrice)
+    {
+        console.log(`adjustedEntryPrice and prevAdjustedEntryPrice are equal: ${adjustedEntryPrice}`)
+        return false
+    }
 
     // Prepare the payload for the request
     const payload = { orderId, quantity, price: adjustedEntryPrice, side, type, timeInForce, timeInForce: 'GTC'}

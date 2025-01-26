@@ -53,17 +53,19 @@ console.log(JSON.stringify(await exchange.getContractInfo()))
 
 //console.log(positions)
 
- const createLimitOrder = await exchange.createLimitOrder({
+/*  const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 
   amountInUSD: 40.545454523231434342, 
   entryPrice: 90000.04545645434354545,
   expirationInMinutes: 10,
   handleExistingOrders: 'REPLACE'
-}) 
+})  */
 
 //console.log(createLimitOrder)
 
 const orders = await exchange.getOrders()
+//console.log(orders)
+
 await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95000, orders})
 
-console.log(await exchange.getOrders())
+//console.log(await exchange.getOrders())
