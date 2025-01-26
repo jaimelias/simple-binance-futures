@@ -31,14 +31,14 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
 
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
 
-    entryPrice = Math.round(entryPrice / tickSize) * tickSize;
+    const adjustedEntryPrice = Math.round(entryPrice / tickSize) * tickSize;
 
 
     const payload = {
         side,
         type: 'LIMIT',
         quantity,
-        price,
+        price: adjustedEntryPrice,
         timeInForce: 'GTC'
     }
 
@@ -71,7 +71,7 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in createLimitOrder: ${JSON.stringify(response)}`)
+        throw new Error(`Error in createLimitOrder: ${JSON.stringify({...response, entryPrice, adjustedEntryPrice, side, quantity, tickSize})}`)
     }
 
     return response

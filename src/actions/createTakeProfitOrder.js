@@ -57,7 +57,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
     if(ignoreOrder) return true
    
     const { entryPrice, positionAmt } = position;
-     const side = (parseFloat(positionAmt) > 0) ? 'BUY' : 'SELL'
+    const side = (parseFloat(positionAmt) > 0) ? 'BUY' : 'SELL'
     const contractInfo = await main.getContractInfo(); // Fetch contract details for precision
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER');
 
@@ -93,7 +93,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in createStopLossOrder: ${JSON.stringify(response)}`)
+        throw new Error(`Error in createStopLossOrder: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
     }
     
     return response

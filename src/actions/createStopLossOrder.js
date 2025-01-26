@@ -79,7 +79,7 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in createStopLossOrder: ${JSON.stringify(response)}`)
+        throw new Error(`Error in createStopLossOrder: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
     }
     
     return response
