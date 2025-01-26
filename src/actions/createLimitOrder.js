@@ -31,7 +31,7 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
 
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
 
-    const adjustedEntryPrice = Math.round(entryPrice / tickSize) * tickSize;
+    const adjustedEntryPrice = parseFloat((Math.round(entryPrice / tickSize) * tickSize).toFixed(contractInfo.pricePrecision));
 
 
     const payload = {

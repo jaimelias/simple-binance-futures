@@ -53,7 +53,7 @@ export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirat
 
     const contractInfo = await main.getContractInfo()
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
-    const adjustedEntryPrice = Math.round(entryPrice / tickSize) * tickSize;
+    const adjustedEntryPrice = parseFloat((Math.round(entryPrice / tickSize) * tickSize).toFixed(contractInfo.pricePrecision));
 
 
     // Prepare the payload for the request

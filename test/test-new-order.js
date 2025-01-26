@@ -24,7 +24,7 @@ const STRATEGY = {
   symbol: 'BTC',
   settlementCurrency: 'USDT',
   marginType: 'ISOLATED',
-  leverage: 125,
+  leverage: 50,
   useServerTime: false,
   debug: true
 }
