@@ -44,7 +44,7 @@ console.log(JSON.stringify(await exchange.getContractInfo()))
 
 //console.log((await exchange.ohlcv({interval: '1m', limit: 1})))
 
-//const orders = await exchange.getOrders()
+
 
 //await exchange.cancelAllOpenedOrders()
 
@@ -55,12 +55,15 @@ console.log(JSON.stringify(await exchange.getContractInfo()))
 
  const createLimitOrder = await exchange.createLimitOrder({
   side: 'BUY', 
-  amountInUSD: 40, 
-  entryPrice: 90000,
+  amountInUSD: 40.545454523231434342, 
+  entryPrice: 90000.04545645434354545,
   expirationInMinutes: 10,
   handleExistingOrders: 'REPLACE'
 }) 
 
-//await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95000, orders})
+//console.log(createLimitOrder)
 
-//console.log(await exchange.getOrders())
+const orders = await exchange.getOrders()
+await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95000, orders})
+
+console.log(await exchange.getOrders())

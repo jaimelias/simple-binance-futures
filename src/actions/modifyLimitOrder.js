@@ -51,8 +51,13 @@ export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirat
         throw new Error('Remaining quantity must be greater than zero.');
     }
 
+    const contractInfo = await main.getContractInfo()
+    const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
+    const adjustedEntryPrice = Math.round(entryPrice / tickSize) * tickSize;
+
+
     // Prepare the payload for the request
-    const payload = { orderId, quantity, price: entryPrice, side, type, timeInForce, timeInForce: 'GTC'}
+    const payload = { orderId, quantity, price: adjustedEntryPrice, side, type, timeInForce, timeInForce: 'GTC'}
 
     if(typeof expirationInMinutes === 'number')
     {
@@ -81,6 +86,12 @@ export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirat
     // Debug log
     if (main.debug) {
         console.log('modifyLimitOrder', { payload, response });
+    }
+    
+
+    if(!response.hasOwnProperty('orderId'))
+    {
+        throw new Error(`Error in modifyLimitOrder: ${JSON.stringify({...response, entryPrice, adjustedEntryPrice, side, quantity, tickSize})}`)
     }
 
     return response;
