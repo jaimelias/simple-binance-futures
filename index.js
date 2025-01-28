@@ -196,8 +196,7 @@ export default class BinanceFutures {
 
     async ohlcv({ interval, startTime, endTime, limit, klineType = 'indexPriceKlines' }) {
 
-
-      return this.errorHandler.init(async () => {
+      return await this.errorHandler.init(async () => {
         validateOhlcv({ interval, startTime, endTime, limit, klineType })
       
         const {contractName} = this
@@ -206,7 +205,7 @@ export default class BinanceFutures {
         const args = {
           interval,
           ...(limit ? { limit } : { startTime, endTime })
-        };
+        }
 
         if(klineType === 'continuousKlines')
         {

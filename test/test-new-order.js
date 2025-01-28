@@ -42,7 +42,7 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
 console.log(JSON.stringify(await exchange.getContractInfo()))
 
-console.log((await exchange.ohlcv({interval: '5m', limit: 2, klineType: 'indexPriceKlines'})))
+console.log((await exchange.ohlcv({interval: '5m', limit: 100, klineType: 'indexPriceKlines'})).slice(-1))
 
 
 
