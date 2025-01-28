@@ -132,13 +132,15 @@ export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
 
 }
 
-export const validateOhlcv = ({ interval, limit = 500, startTime, endTime }) => {
+export const validateOhlcv = ({ interval, limit = 500, startTime, endTime, klineType }) => {
   // List of valid intervals
   const validIntervals = [
     "1m", "3m", "5m", "15m", "30m", 
     "1h", "2h", "4h", "6h", "8h", 
     "12h", "1d", "3d", "1w", "1M"
   ];
+
+  const validKlineTypes = ['klines', 'continuousKlines', 'indexPriceKlines', 'markPriceKlines', 'premiumIndexKlines']
 
   // Validate interval
   if (!interval) {
@@ -147,6 +149,14 @@ export const validateOhlcv = ({ interval, limit = 500, startTime, endTime }) => 
 
   if (!validIntervals.includes(interval)) {
     throw new Error(`Invalid "interval". Accepted values are: ${validIntervals.join(", ")}.`);
+  }
+
+  if(klineType)
+  {
+    if(!validKlineTypes.includes(klineType))
+    {
+      throw new Error(`Invalid "klineType". Accepted values are: ${validKlineTypes.join(", ")}.`);
+    }
   }
 
   // Validate limit

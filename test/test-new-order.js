@@ -42,7 +42,7 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
 console.log(JSON.stringify(await exchange.getContractInfo()))
 
-//console.log((await exchange.ohlcv({interval: '1m', limit: 1})))
+console.log((await exchange.ohlcv({interval: '5m', limit: 2, klineType: 'indexPriceKlines'})))
 
 
 
@@ -63,9 +63,9 @@ console.log(JSON.stringify(await exchange.getContractInfo()))
 
 //console.log(createLimitOrder)
 
-const orders = await exchange.getOrders()
+//const orders = await exchange.getOrders()
 //console.log(orders)
 
-await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95000, orders})
+//await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95000, orders})
 
 //console.log(await exchange.getOrders())

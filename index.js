@@ -194,19 +194,35 @@ export default class BinanceFutures {
       })
     }
 
-    async ohlcv({ interval, startTime, endTime, limit }) {
+    async ohlcv({ interval, startTime, endTime, limit, klineType = 'indexPriceKlines' }) {
 
 
       return this.errorHandler.init(async () => {
-        validateOhlcv({ interval, startTime, endTime, limit })
+        validateOhlcv({ interval, startTime, endTime, limit, klineType })
       
+        const {contractName} = this
+
         // Build query args
         const args = {
           interval,
           ...(limit ? { limit } : { startTime, endTime })
         };
+
+        if(klineType === 'continuousKlines')
+        {
+          args.pair = contractName
+          args.contractType = 'PERPETUAL'
+        }
+        else if(klineType === 'indexPriceKlines')
+        {
+          args.pair = contractName
+        }
+        else if(klineType === 'markPriceKlines')
+        {
+          args.pair = contractName
+        }
       
-        const data = await this.fetch('klines', 'GET', args)
+        const data = await this.fetch(klineType, 'GET', args)
       
         if (!Array.isArray(data)) {
           throw new Error('Invalid response in "ohlcv".')

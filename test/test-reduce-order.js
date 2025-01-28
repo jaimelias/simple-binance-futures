@@ -34,10 +34,10 @@ const errorLogger = message => console.error(message)
 const CALLBACKS = {fetch, crypto, errorLogger}
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
-console.log((await exchange.getServerTime()))
+//console.log((await exchange.getServerTime()))
 
-const tp = await exchange.createTakeProfitOrder({triggerPrice: 109000, handleExistingOrders: 'REPLACE'})
-const sl = await exchange.createStopLossOrder({triggerPrice: 90000, handleExistingOrders: 'REPLACE'})
+//const tp = await exchange.createTakeProfitOrder({triggerPrice: 109000, handleExistingOrders: 'REPLACE'})
+//const sl = await exchange.createStopLossOrder({triggerPrice: 90000, handleExistingOrders: 'REPLACE'})
 //await exchange.closePosition({side: 'SELL'})
 
 console.log({tp, sl})
