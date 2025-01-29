@@ -27,7 +27,7 @@ export default class BinanceFutures {
 
       this.errorHandler = new ErrorHandler(this.callbacks)
   
-      const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false, workingType = 'MARK_PRICE'} = strategy
+      const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false, workingType = 'CONTRACT_PRICE'} = strategy
   
       validateEnvironment(environment)
       validateCredentials(credentials, environment)
@@ -51,6 +51,7 @@ export default class BinanceFutures {
       
       
       this.cache = {}
+      this.latestPrice = 0
     }
   
   
@@ -154,10 +155,10 @@ export default class BinanceFutures {
 
     }
   
-    async createLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders}) {
+    async createLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders, ignoreImmediateExecErr}) {
       
       return this.errorHandler.init(async () => {
-        return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders})
+        return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders, ignoreImmediateExecErr})
       })
 
     }
@@ -241,7 +242,7 @@ export default class BinanceFutures {
           throw new Error('Invalid response in "ohlcv".')
         }
       
-        return data.map(([timestamp, open, high, low, close, volume]) => ({
+        const output =  data.map(([timestamp, open, high, low, close, volume]) => ({
           open: parseFloat(open),
           high: parseFloat(high),
           low: parseFloat(low),
@@ -249,6 +250,11 @@ export default class BinanceFutures {
           volume: parseFloat(volume),
           date: millisecondsToDateStr(timestamp)
         }))
+
+
+        this.latestPrice = output[output.length -1].close
+
+        return output
       })
 
     }

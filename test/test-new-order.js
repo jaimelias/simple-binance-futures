@@ -44,28 +44,22 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
 //console.log((await exchange.ohlcv({interval: '5m', limit: 100, klineType: 'indexPriceKlines'})).slice(-1))
 
-
-
-//await exchange.cancelAllOpenedOrders()
-
-//const positions = await exchange.getPositions()
-//const orders = await exchange.getOrders()
-
 //console.log(positions)
 
-  const createStopLimitOrder = await exchange.createStopLimitOrder({
-  side: 'SELL', 
-  amountInUSD: 40.545454523231434342, 
-  entryPrice: 100000,
-  fraction: 0.001,
-  expirationInMinutes: 10,
-  handleExistingOrders: 'KEEP'
-})  
 
+/* const createStopLimitOrder = await exchange.createLimitOrder({
+    side: 'BUY', 
+    amountInUSD: 15, 
+    entryPrice: 95000,
+    fraction: 0.001,
+    expirationInMinutes: 10,
+    handleExistingOrders: 'REPLACE',
+    ignoreImmediateExecErr: false
+}) */
 
-//const orders = await exchange.getOrders()
-//console.log(orders)
+const orders = await exchange.getOrders()
+console.log(orders)
 
-//await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 95000, orders})
+await exchange.modifyLimitOrder({side: 'BUY', entryPrice: 96000, orders})
 
 //console.log(await exchange.getOrders())

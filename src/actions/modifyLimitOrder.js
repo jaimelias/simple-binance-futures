@@ -1,4 +1,6 @@
-export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirationInMinutes = 10}) => {
+import { getOrderExpirationParams } from '../utilities/utilities.js'
+
+export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, expirationInMinutes = 10}) => {
     // Validate that price is a number
     if (isNaN(entryPrice) || entryPrice <= 0) {
         throw new Error('"entryPrice" must be a positive number.');
@@ -17,10 +19,14 @@ export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirat
     }
 
     // Validate that order is an object with the required properties
-    if (orders && !Array.isArray(orders)) {
+    if (!Array.isArray(orders)) {
         throw new Error('"orders" must be a valid array.');
     }
 
+    if(orders.length === 0)
+    {
+        orders = await main.getOrders()
+    }
 
     const validSide = or => {
         const {origQty, executedQty} = or
@@ -39,7 +45,7 @@ export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirat
     ? orders.find(o => o.symbol === main.contractName && o.type === 'LIMIT' && validSide(o))
     : false
 
-    const { orderId, origQty, executedQty, timeInForce, price: prevEntryPrice } = order;
+    const { orderId, origQty, executedQty, price: prevEntryPrice } = order;
 
     if (!orderId || isNaN(origQty) || isNaN(executedQty)) {
         throw new Error('"order" must contain valid orderId, origQty, and executedQty properties.');
@@ -61,36 +67,21 @@ export const modifyLimitOrder = async ({ main, orders, entryPrice, side, expirat
         return parseFloat((Math.round(p / tickSize) * tickSize).toFixed(contractInfo.pricePrecision))
     }
 
-    const adjustedEntryPrice = adjustPricePrecision(entryPrice);
-    const prevAdjustedEntryPrice = adjustPricePrecision(prevEntryPrice);
+    const adjustedEntryPrice = adjustPricePrecision(entryPrice)
+    const prevAdjustedEntryPrice = adjustPricePrecision(prevEntryPrice)
 
     if(adjustedEntryPrice === prevAdjustedEntryPrice)
     {
-        console.log(`adjustedEntryPrice and prevAdjustedEntryPrice are equal: ${adjustedEntryPrice}`)
         return false
     }
 
     // Prepare the payload for the request
-    const payload = { orderId, quantity, price: adjustedEntryPrice, side, type, timeInForce, timeInForce: 'GTC'}
+    const payload = { orderId, quantity, price: adjustedEntryPrice, side, type, timeInForce: 'GTC'}
 
-    if(typeof expirationInMinutes === 'number')
-    {
-        if(expirationInMinutes <= 10)
-        {
-            expirationInMinutes = 10.1
-        }
+    const { timeInForce, goodTillDate } = await getOrderExpirationParams({ main, expirationInMinutes })
 
-        const tenMinutesInMillis = expirationInMinutes * 60 * 1000; // 10 minutes in milliseconds
-
-        let timestamp = Date.now()
-
-        if(main.useServerTime)
-        {
-            timestamp = await main.getServerTime()
-        }
-
-        payload.goodTillDate = timestamp + tenMinutesInMillis
-        payload.timeInForce = 'GTD'
+    if (timeInForce && goodTillDate) {
+        Object.assign(payload, { timeInForce, goodTillDate })
     }
 
 

@@ -1,27 +1,29 @@
 import { calculateQuantity } from '../utilities/calculateQuantity.js'
 import { validateStopLimitOrder } from '../utilities/validators.js'
+import { getOrderExpirationParams } from '../utilities/utilities.js'
 
-export const createStopLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes = 10, orders}) => {
+export const createStopLimitOrder = async ({
+    main, 
+    side = 'BUY', 
+    amountInUSD, 
+    entryPrice, 
+    fraction, 
+    handleExistingOrders, 
+    expirationInMinutes = 10, 
+    orders
+}) => {
 
-    /*  this is the payload of a BUY STOP_LIMIT order:
+    if(main.latestPrice === 0)
+    {
+        ///this sets main.latestPrice
+        await main.ohlcv({
+            interval: '5m', 
+            limit: 1, 
+            klineType: (main.workingType === 'CONTRACT_PRICE') ? 'indexPriceKlines' : 'markPriceKlines'
+        })
+    }
 
-        {
-            "symbol": "BTCUSDT",
-            "type": "STOP",
-            "side": "BUY",
-            "positionSide": "BOTH",
-            "quantity": 0.024,
-            "reduceOnly": false,
-            "price": "101250",
-            "stopPrice": "101200",
-            "workingType": "MARK_PRICE",
-            "timeInForce": "GTC",
-            "priceProtect": true,
-            "placeType": "order-form"
-        }
-    */
-
-    validateStopLimitOrder({side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes})
+    validateStopLimitOrder({main, side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes})
 
     const ignoreOrder = await funcHandleExistingOrders({main, side, entryPrice, handleExistingOrders, orders})
 
@@ -53,24 +55,10 @@ export const createStopLimitOrder = async ({main, side = 'BUY', amountInUSD, ent
         workingType: main.workingType
     }
 
-    if(typeof expirationInMinutes === 'number')
-    {
-        if(expirationInMinutes <= 10)
-        {
-            expirationInMinutes = 10.1
-        }
+    const { timeInForce, goodTillDate } = await getOrderExpirationParams({ main, expirationInMinutes });
 
-        const tenMinutesInMillis = expirationInMinutes * 60 * 1000; // 10 minutes in milliseconds
-
-        let timestamp = Date.now()
-
-        if(main.useServerTime)
-        {
-            timestamp = await main.getServerTime()
-        }
-
-        payload.goodTillDate = timestamp + tenMinutesInMillis
-        payload.timeInForce = 'GTD'
+    if (timeInForce && goodTillDate) {
+        Object.assign(payload, { timeInForce, goodTillDate })
     }
 
     const response = await main.fetch('order', 'POST', payload)
