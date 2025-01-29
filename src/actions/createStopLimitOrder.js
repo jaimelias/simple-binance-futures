@@ -1,29 +1,28 @@
 import { calculateQuantity } from '../utilities/calculateQuantity.js'
-import { validateCreateLimitOrder } from '../utilities/validators.js'
+import { validateStopLimitOrder } from '../utilities/validators.js'
 
-/**
- * Creates a limit order with the specified parameters.
- *
- * @async
- * @function createLimitOrder
- * @param {Object} params - The parameters object.
- * @param {Object} params.main - The main context object, providing methods like `getContractInfo`, `fetch`, etc.
- * @param {('BUY' | 'SELL')} [params.side='BUY'] - The side of the order (e.g., 'BUY' or 'SELL').
- * @param {number} params.amountInUSD - The USD value for the desired position size.
- * @param {number} params.entryPrice - The price at which to set the limit order.
- * @param {('ADD' | 'KEEP' | 'ERROR' | 'REPLACE')} - How to handle existing limit orders if any are found:
- *   - **ADD**: Adds a new order without cancelling existing ones.
- *   - **KEEP**: Keeps existing orders and prevents the creation of a new one.
- *   - **ERROR**: Throws an error if any existing orders are found.
- *   - **REPLACE**: Cancels existing orders and then creates a new one.
- * @param {number} [params.expirationInMinutes=10] - The time (in minutes) until the order expires. 
- *   A minimum of 10.1 minutes is enforced if a value of 10 minutes or less is provided.
- * @returns {Promise<Object>} A promise that resolves to the response from creating the limit order.
- */
+export const createStopLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes = 10, orders}) => {
 
-export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes = 10, orders}) => {
-  
-    validateCreateLimitOrder({side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes})
+    /*  this is the payload of a BUY STOP_LIMIT order:
+
+        {
+            "symbol": "BTCUSDT",
+            "type": "STOP",
+            "side": "BUY",
+            "positionSide": "BOTH",
+            "quantity": 0.024,
+            "reduceOnly": false,
+            "price": "101250",
+            "stopPrice": "101200",
+            "workingType": "MARK_PRICE",
+            "timeInForce": "GTC",
+            "priceProtect": true,
+            "placeType": "order-form"
+        }
+    */
+
+    validateStopLimitOrder({side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes})
+
     const ignoreOrder = await funcHandleExistingOrders({main, side, entryPrice, handleExistingOrders, orders})
 
     if(ignoreOrder)
@@ -32,20 +31,26 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
         return true
     }
 
+    const stopPrice = entryPrice
+    const limitPrice = (side === 'BUY') ? entryPrice + (entryPrice * fraction) : entryPrice - (entryPrice * fraction)
+
     const contractInfo = await main.getContractInfo()
     const quantity = calculateQuantity(amountInUSD, main.leverage, contractInfo, entryPrice)
 
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
 
-    const adjustedEntryPrice = parseFloat((Math.round(entryPrice / tickSize) * tickSize).toFixed(contractInfo.pricePrecision));
+    const adjustedStopPrice = parseFloat((Math.round(stopPrice / tickSize) * tickSize).toFixed(contractInfo.pricePrecision))
+    const adjustedLimitPrice = parseFloat((Math.round(limitPrice / tickSize) * tickSize).toFixed(contractInfo.pricePrecision))
 
 
     const payload = {
         side,
-        type: 'LIMIT',
+        type: 'STOP',
         quantity,
-        price: adjustedEntryPrice,
-        timeInForce: 'GTC'
+        stopPrice: adjustedStopPrice,
+        price: adjustedLimitPrice,
+        timeInForce: 'GTC',
+        workingType: main.workingType
     }
 
     if(typeof expirationInMinutes === 'number')
@@ -72,15 +77,16 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
 
     if(main.debug)
     {
-        console.log('createLimitOrder', {payload, response})
+        console.log('createStopLimitOrder', {payload, response})
     }
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in createLimitOrder: ${JSON.stringify({...response, entryPrice, adjustedEntryPrice, side, quantity, tickSize})}`)
+        throw new Error(`Error in createStopLimitOrder: ${JSON.stringify({...response, entryPrice, adjustedEntryPrice, side, quantity, tickSize})}`)
     }
 
     return response
+
 }
 
 const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingOrders, orders}) => {
@@ -90,7 +96,7 @@ const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingO
         orders = await main.getOrders()
     }
     
-    const existingOrders = orders.filter(o => o.symbol === main.contractName && o.type === 'LIMIT' && o.side === side && o.reduceOnly === false && o.priceProtect === false && o.closePosition === false && o.goodTillDate)
+    const existingOrders = orders.filter(o => o.symbol === main.contractName && o.type === 'STOP' && o.side === side && o.reduceOnly === false && o.priceProtect === false && o.closePosition === false && o.goodTillDate)
 
     if(existingOrders.length > 0)
     {

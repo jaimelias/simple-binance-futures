@@ -1,6 +1,7 @@
 import { validateCredentials, validateEnvironment, validateStrategy, validateOhlcv, validateCallbacks } from './src/utilities/validators.js'
 import {getEngine, universalFetch} from './src/utilities/universalFetch.js'
 import { createLimitOrder } from './src/actions/createLimitOrder.js'
+import { createStopLimitOrder } from './src/actions/createStopLimitOrder.js'
 import { createTakeProfitOrder } from './src/actions/createTakeProfitOrder.js'
 import { createStopLossOrder } from './src/actions/createStopLossOrder.js'
 import { millisecondsToDateStr } from './src/utilities/utilities.js'
@@ -26,7 +27,7 @@ export default class BinanceFutures {
 
       this.errorHandler = new ErrorHandler(this.callbacks)
   
-      const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false,} = strategy
+      const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false, workingType = 'MARK_PRICE'} = strategy
   
       validateEnvironment(environment)
       validateCredentials(credentials, environment)
@@ -46,6 +47,7 @@ export default class BinanceFutures {
       this.useServerTime = useServerTime
       this.environment = environment
       this.debug = debug
+      this.workingType = workingType
       
       
       this.cache = {}
@@ -160,6 +162,14 @@ export default class BinanceFutures {
 
     }
 
+    async createStopLimitOrder({side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes, orders}) {
+      
+      return this.errorHandler.init(async () => {
+        return await createStopLimitOrder({main: this, side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes, orders})
+      })
+
+    }
+
     async modifyLimitOrder({orders, entryPrice, side, expirationInMinutes}) {
 
       return this.errorHandler.init(async () => {
@@ -194,7 +204,7 @@ export default class BinanceFutures {
       })
     }
 
-    async ohlcv({ interval, startTime, endTime, limit, klineType = 'indexPriceKlines' }) {
+    async ohlcv({ interval, startTime, endTime, limit, klineType = 'markPriceKlines' }) {
 
       return await this.errorHandler.init(async () => {
         validateOhlcv({ interval, startTime, endTime, limit, klineType })

@@ -76,6 +76,16 @@ export const validateStrategy = (strategy) => {
     if (typeof leverage !== 'number' || isNaN(leverage) || leverage <= 0) {
       throw new Error('Invalid "leverage". It must be a positive number.')
     }
+
+
+    if(strategy.hasOwnProperty('workingType'))
+    {
+      if(!['MARK_PRICE', 'CONTRACT_PRICE'].includes(strategy.workingType))
+      {
+        throw new Error('Invalid "workingType" property. Only "MARK_PRICE" and "CONTRACT_PRICE" are accepted.')
+      }
+    }
+
   }
 
 
@@ -207,3 +217,41 @@ export const validateCallbacks = (callbacks = {}, engine) => {
     }
   }
 };
+
+
+export const validateStopLimitOrder = ({side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes}) => {
+  if(!side || !['BUY', 'SELL'].includes(side))
+      {
+          throw new Error('Invalid or missing property "side" in createLimitOrder.');
+      }
+  if(typeof amountInUSD !== 'number' || amountInUSD <= 0)
+  {
+      throw new Error('Missing or invalid "amountInUSD" in createLimitOrder. "amountInUSD" must be a positive number.');
+  }
+
+  if(typeof entryPrice !== 'number' || entryPrice <= 0)
+  {
+      throw new Error('Missing or invalid "entryPrice" in createLimitOrder. "entryPrice" must be a positive number.');
+  }
+  if(typeof fraction !== 'number' || fraction <= 0)
+  {
+      throw new Error('Missing or invalid "fraction" in createStopLimitOrder. "fraction" must be a positive number.');
+  }
+
+  if(typeof expirationInMinutes !== 'undefined')
+  {
+      if(typeof expirationInMinutes === 'number' && expirationInMinutes >= 10)
+      {
+          //do nothing
+      }
+      else
+      {
+          throw new Error('Invalid "expirationInMinutes" in createLimitOrder. "expirationInMinutes" must be a positive number greater than or equal to 10.');
+      }
+  }
+
+  if(!handleExistingOrders || !['KEEP', 'ERROR', 'REPLACE', 'ADD'].includes(handleExistingOrders))
+  {
+      throw new Error('Invalid "handleExistingOrders" property in "createLimitOrder". Only "KEEP", "ERROR", "REPLACE", and "ADD" strings are supported. Defaults to "ADD".');
+  }
+} 

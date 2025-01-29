@@ -19,7 +19,7 @@ import { validateReduceOrders } from "../utilities/validators.js"
  *   - An existing take-profit order is found and `handleExistingOrders` is set to `'ERROR'`.
  */
 
-export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingOrders, positions, orders}) => {
+export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingOrders, positions, orders, workingType = 'MARK_PRICE'}) => {
     /* 
       Payload for a BUY position:
       {
@@ -54,7 +54,10 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
     const ignoreOrder = await funcHandleExistingReduceOrders({main, handleExistingOrders, type, orders, triggerPrice})
 
-    if(ignoreOrder) return true
+    if(ignoreOrder){
+      console.log('Ignoring take profit order because of "KEEP".')
+      return true
+    }
    
     const { entryPrice, positionAmt } = position;
     const side = (parseFloat(positionAmt) > 0) ? 'BUY' : 'SELL'
@@ -78,10 +81,11 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
         timeInForce: 'GTE_GTC',
         quantity: 0, // Close entire position
         stopPrice: adjustedStopPrice,
-        workingType: 'MARK_PRICE',
+        workingType: main.workingType,
         closePosition: true,
         placeType: 'position',
         priceProtect: true,
+        workingType
     }
 
     const response = await main.fetch('order', 'POST', payload)

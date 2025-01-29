@@ -39,7 +39,10 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
 
     const ignoreOrder = await funcHandleExistingReduceOrders({main, handleExistingOrders, type, orders, triggerPrice})
 
-    if(ignoreOrder) return true
+    if(ignoreOrder){
+      console.log('Ignoring stop loss order because of "KEEP".')
+      return true
+    }
 
     const { entryPrice, positionAmt } = position;
     const side = (parseFloat(positionAmt) > 0) ? 'BUY' : 'SELL'
@@ -63,7 +66,7 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
         timeInForce: 'GTE_GTC',
         quantity: 0, // Close entire position
         stopPrice: adjustedStopPrice,
-        workingType: 'MARK_PRICE',
+        workingType: main.workingType,
         closePosition: true,
         placeType: 'position',
         priceProtect: true,
