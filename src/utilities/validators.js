@@ -78,11 +78,11 @@ export const validateStrategy = (strategy) => {
     }
 
 
-    if(strategy.hasOwnProperty('workingType'))
+    if(strategy.hasOwnProperty('useMarkPrice'))
     {
-      if(!['MARK_PRICE', 'CONTRACT_PRICE'].includes(strategy.workingType))
+      if(typeof strategy.useMarkPrice !== 'boolean')
       {
-        throw new Error('Invalid "workingType" property. Only "MARK_PRICE" and "CONTRACT_PRICE" are accepted.')
+        throw new Error('Invalid "useMarkPrice" property in strategy object. Only boolean value is accepted')
       }
     }
 
@@ -160,7 +160,7 @@ export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
 
 }
 
-export const validateOhlcv = ({ interval, limit = 500, startTime, endTime, klineType }) => {
+export const validateOhlcv = ({ interval, limit = 500, startTime, endTime }) => {
   // List of valid intervals
   const validIntervals = [
     "1m", "3m", "5m", "15m", "30m", 
@@ -168,7 +168,6 @@ export const validateOhlcv = ({ interval, limit = 500, startTime, endTime, kline
     "12h", "1d", "3d", "1w", "1M"
   ];
 
-  const validKlineTypes = ['klines', 'continuousKlines', 'indexPriceKlines', 'markPriceKlines', 'premiumIndexKlines']
 
   // Validate interval
   if (!interval) {
@@ -177,14 +176,6 @@ export const validateOhlcv = ({ interval, limit = 500, startTime, endTime, kline
 
   if (!validIntervals.includes(interval)) {
     throw new Error(`Invalid "interval". Accepted values are: ${validIntervals.join(", ")}.`);
-  }
-
-  if(klineType)
-  {
-    if(!validKlineTypes.includes(klineType))
-    {
-      throw new Error(`Invalid "klineType". Accepted values are: ${validKlineTypes.join(", ")}.`);
-    }
   }
 
   // Validate limit

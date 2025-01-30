@@ -27,7 +27,7 @@ export default class BinanceFutures {
 
       this.errorHandler = new ErrorHandler(this.callbacks)
   
-      const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false, workingType = 'CONTRACT_PRICE'} = strategy
+      const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false, useMarkPrice = false} = strategy
   
       validateEnvironment(environment)
       validateCredentials(credentials, environment)
@@ -47,7 +47,8 @@ export default class BinanceFutures {
       this.useServerTime = useServerTime
       this.environment = environment
       this.debug = debug
-      this.workingType = workingType
+      
+      this.workingType = (useMarkPrice) ? 'MARK_PRICE' : 'CONTRACT_PRICE'
       
       
       this.cache = {}
@@ -163,6 +164,14 @@ export default class BinanceFutures {
 
     }
 
+    async modifyLimitOrder({orders, entryPrice, side, expirationInMinutes}) {
+
+      return this.errorHandler.init(async () => {
+        return await modifyLimitOrder({main: this, orders, entryPrice, side, expirationInMinutes})
+      })
+
+    }
+
     async createStopLimitOrder({side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes, orders}) {
       
       return this.errorHandler.init(async () => {
@@ -171,14 +180,6 @@ export default class BinanceFutures {
 
     }
 
-    async modifyLimitOrder({orders, entryPrice, side, expirationInMinutes}) {
-
-      return this.errorHandler.init(async () => {
-        return await modifyLimitOrder({main: this, orders, entryPrice, side, expirationInMinutes})
-      })
-
-    }
-  
     async createTakeProfitOrder({triggerPrice, handleExistingOrders, positions, orders}) {
 
       return this.errorHandler.init(async () => {
@@ -205,33 +206,24 @@ export default class BinanceFutures {
       })
     }
 
-    async ohlcv({ interval, startTime, endTime, limit, klineType = 'markPriceKlines' }) {
+    async ohlcv({ interval, startTime, endTime, limit }) {
 
       return await this.errorHandler.init(async () => {
-        validateOhlcv({ interval, startTime, endTime, limit, klineType })
+        validateOhlcv({ interval, startTime, endTime, limit })
       
         const {contractName} = this
 
         // Build query args
         const args = {
           interval,
+          pair: contractName,
           ...(limit ? { limit } : { startTime, endTime })
         }
 
-        if(klineType === 'continuousKlines')
-        {
-          args.pair = contractName
-          args.contractType = 'PERPETUAL'
-        }
-        else if(klineType === 'indexPriceKlines')
-        {
-          args.pair = contractName
-        }
-        else if(klineType === 'markPriceKlines')
-        {
-          args.pair = contractName
-        }
-      
+        const klineType = (this.workingType === 'MARK_PRICE') ? 'markPriceKlines' : 'indexPriceKlines'
+
+        console.log(klineType)
+
         const data = await this.fetch(klineType, 'GET', args)
       
         if (!Array.isArray(data)) {
