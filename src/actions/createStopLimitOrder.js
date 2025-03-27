@@ -30,7 +30,7 @@ export const createStopLimitOrder = async ({
     if(ignoreOrder)
     {
         console.log('Ignoring create limit order because of "KEEP".')
-        return true
+        return false
     }
 
     const stopPrice = entryPrice

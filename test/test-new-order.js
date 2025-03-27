@@ -27,7 +27,7 @@ const STRATEGY = {
   leverage: 50,
   useServerTime: false,
   debug: true,
-  useMarkPrice: true
+  useMarkPrice: false
 }
 
 const errorLogger = async (message) => {
@@ -41,16 +41,18 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
 //console.log(JSON.stringify(await exchange.getContractInfo()))
 
-console.log((await exchange.ohlcv({interval: '5m', limit: 100, klineType: 'indexPriceKlines'})).slice(-1))
+//console.log((await exchange.ohlcv({interval: '5m', limit: 100, klineType: 'indexPriceKlines'})).slice(-1))
 
 //console.log(positions)
 
-/* const createStopLimitOrder = await exchange.createStopLimitOrder({
+/*  const createStopLimitOrder = await exchange.createLimitOrder({
     side: 'BUY', 
     amountInUSD: 15, 
-    entryPrice: 107000,
+    entryPrice: 70000,
     fraction: 0.001,
     expirationInMinutes: 10,
     handleExistingOrders: 'REPLACE',
     ignoreImmediateExecErr: false
-}) */
+})  */
+
+console.log(await exchange.getTradingData([{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}]))

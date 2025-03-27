@@ -42,7 +42,7 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
     if(ignoreOrder)
     {
         console.log('Ignoring create limit order because of "KEEP".')
-        return true
+        return false
     }
 
     const contractInfo = await main.getContractInfo()
