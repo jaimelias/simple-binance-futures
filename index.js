@@ -72,13 +72,13 @@ export default class BinanceFutures {
       
     }
   
-    async getTradingData(ohlcvConfigArr = []) {
+    async getTradingData(ohlcvConfigArr = [], reloadBalances = true) {
 
       const output = {}
       const promises = [
         this.getPositions(),
         this.getOrders(),
-        this.getBalance(),
+        this.getBalance(reloadBalances),
         this.getContractInfo()
       ]
       const promiseKeyNames = ['positions', 'orders', 'balance', 'contractInfo']
@@ -140,9 +140,15 @@ export default class BinanceFutures {
 
     }
   
-    async getBalance() {
+    async getBalance(reloadBalances = true) {
   
       return this.errorHandler.init(async () => {
+        const {contractName} = this
+        const cacheKey = `balance_${contractName}`
+
+        if(reloadBalances === false && this.cache.hasOwnProperty(cacheKey) && this.cache[cacheKey] !== 0) {
+          return this.cache[cacheKey]
+        }
     
         const data = await this.fetch('balance', 'GET', {}, 'v2');
     
@@ -150,8 +156,15 @@ export default class BinanceFutures {
     
         if(typeof findUSDT === 'object')
         {
-          return findUSDT.balance
+          const balance = parseFloat(findUSDT.balance)
+
+          if(reloadBalances) {
+            this.cache[cacheKey] = balance
+          }
+          
+          return balance
         }
+
         return 0
       })
 

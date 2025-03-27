@@ -55,4 +55,5 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
     ignoreImmediateExecErr: false
 })  */
 
-console.log(await exchange.getTradingData([{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}]))
+console.log(await exchange.getBalance())
+console.log(await exchange.getTradingData([{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}], false))
