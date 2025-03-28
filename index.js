@@ -7,6 +7,7 @@ import { createStopLossOrder } from './src/actions/createStopLossOrder.js'
 import { millisecondsToDateStr } from './src/utilities/utilities.js'
 import { closePosition } from './src/actions/closePosition.js'
 import { modifyLimitOrder } from './src/actions/modifyLimitOrder.js'
+import { getTradingData } from './src/getters/getTradingData.js'
 import ErrorHandler from './src/utilities/ErrorHandler.js'
 
 export const defaultEndpoints = {
@@ -74,53 +75,9 @@ export default class BinanceFutures {
   
     async getTradingData(ohlcvConfigArr = [], reloadBalances = true) {
 
-      const output = {}
-      const promises = [
-        this.getPositions(),
-        this.getOrders(),
-        this.getBalance(reloadBalances),
-        this.getContractInfo()
-      ]
-      const promiseKeyNames = ['positions', 'orders', 'balance', 'contractInfo']
-
-      if(!Array.isArray(ohlcvConfigArr))
-      {
-        throw new Error('Error "ohlcvConfigArr" must be an array of objects in "getTradingData": [{ interval, startTime, endTime, limit }]')
-      }
-
-      for(const thisOhlcvConfig of ohlcvConfigArr)
-      {
-        const { interval, startTime, endTime, limit } = thisOhlcvConfig
-        
-        promises.push(
-          this.ohlcv({ interval, startTime, endTime, limit })
-        )
-
-        promiseKeyNames.push(`ohlcv_${interval}`)
-      }
-
-      const resolvedPromises = await Promise.all(promises)
-
-      for(let x = 0; x < promiseKeyNames.length; x++)
-      {
-        const [key, id] = promiseKeyNames[x].split('_')
-
-        if(key === 'ohlcv')
-        {
-          if(!output.hasOwnProperty(key))
-          {
-            output.ohlcv = {}
-          }
-
-          output.ohlcv[id] = resolvedPromises[x]
-        }
-        else
-        {
-          output[key] = resolvedPromises[x]
-        }
-      }
-
-      return output
+      return this.errorHandler.init(async () => {
+        return await getTradingData(this, ohlcvConfigArr, reloadBalances)
+      })
 
     }
 

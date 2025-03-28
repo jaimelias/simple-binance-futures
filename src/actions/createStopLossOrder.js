@@ -68,6 +68,7 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
         stopPrice: adjustedStopPrice,
         workingType: main.workingType,
         closePosition: true,
+        reduceOnly: true,
         placeType: 'position',
         priceProtect: true,
     }

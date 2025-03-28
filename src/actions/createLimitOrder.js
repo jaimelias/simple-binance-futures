@@ -58,7 +58,9 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
         type: 'LIMIT',
         quantity,
         price: adjustedEntryPrice,
-        timeInForce: 'GTC'
+        timeInForce: 'GTC',
+        closePosition: false,
+        reduceOnly: false,
     }
 
     const { timeInForce, goodTillDate } = await getOrderExpirationParams({ main, expirationInMinutes });

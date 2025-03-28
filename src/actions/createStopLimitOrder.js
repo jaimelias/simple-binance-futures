@@ -52,7 +52,9 @@ export const createStopLimitOrder = async ({
         stopPrice: adjustedStopPrice,
         price: adjustedLimitPrice,
         timeInForce: 'GTC',
-        workingType: main.workingType
+        workingType: main.workingType,
+        closePosition: false,
+        reduceOnly: false,
     }
 
     const { timeInForce, goodTillDate } = await getOrderExpirationParams({ main, expirationInMinutes });
