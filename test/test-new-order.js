@@ -55,4 +55,12 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
     ignoreImmediateExecErr: false
 }) */
 
-console.log((await exchange.getTradingData([{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}], false)))
+//await exchange.changeLeverage()
+//await exchange.changeMarginType()
+
+console.log((await exchange.getTradingData({
+  ohlcvConfig: [{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}],
+  reloadBalances: false,
+  reloadMarginType: false,
+  reloadLeverage: false
+})))

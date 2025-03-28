@@ -1,4 +1,4 @@
-export const getTradingData = async (main, ohlcvConfigArr = [], reloadBalances = true) => {
+export const getTradingData = async ({main, ohlcvConfig, reloadBalances}) => {
 
     const data = {
         positions: {
@@ -28,12 +28,12 @@ export const getTradingData = async (main, ohlcvConfigArr = [], reloadBalances =
       ]
       const promiseKeyNames = ['positions', 'orders', 'balance', 'contractInfo']
 
-      if(!Array.isArray(ohlcvConfigArr))
+      if(!Array.isArray(ohlcvConfig))
       {
-        throw new Error('Error "ohlcvConfigArr" must be an array of objects in "getTradingData": [{ interval, startTime, endTime, limit }]')
+        throw new Error('Error "ohlcvConfig" must be an array of objects in "getTradingData": [{ interval, startTime, endTime, limit }]')
       }
 
-      for(const thisOhlcvConfig of ohlcvConfigArr)
+      for(const thisOhlcvConfig of ohlcvConfig)
       {
         const { interval, startTime, endTime, limit } = thisOhlcvConfig
         

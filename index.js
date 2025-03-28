@@ -73,10 +73,10 @@ export default class BinanceFutures {
       
     }
   
-    async getTradingData(ohlcvConfigArr = [], reloadBalances = true) {
+    async getTradingData({ohlcvConfig = [], reloadBalances = true}) {
 
       return this.errorHandler.init(async () => {
-        return await getTradingData(this, ohlcvConfigArr, reloadBalances)
+        return await getTradingData({main: this, ohlcvConfig, reloadBalances})
       })
 
     }
