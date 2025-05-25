@@ -228,7 +228,21 @@ export default class BinanceFutures {
       })
     }
 
-    async ohlcv({ interval, startTime, endTime, limit }) {
+    async ohlcv(params) {
+
+      if(Array.isArray(params))
+      {
+        const ohlcvObj = {}
+
+        for(const obj of params)
+        {
+          ohlcvObj[obj.interval] = await this.ohlcv(obj)
+        }
+
+        return ohlcvObj
+      }
+
+      const { interval, startTime, endTime, limit } = params
 
       return await this.errorHandler.init(async () => {
         validateOhlcv({ interval, startTime, endTime, limit })

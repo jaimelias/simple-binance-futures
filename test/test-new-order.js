@@ -41,7 +41,7 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
 //console.log(JSON.stringify(await exchange.getContractInfo()))
 
-//console.log((await exchange.ohlcv({interval: '5m', limit: 100, klineType: 'indexPriceKlines'})).slice(-1))
+console.log(JSON.stringify(await exchange.ohlcv([{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}])))
 
 //console.log(positions)
 
@@ -58,9 +58,9 @@ const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 //await exchange.changeLeverage()
 //await exchange.changeMarginType()
 
-console.log((await exchange.getTradingData({
+/* console.log((await exchange.getTradingData({
   ohlcvConfig: [{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}],
   reloadBalances: false,
   reloadMarginType: false,
   reloadLeverage: false
-})))
+}))) */

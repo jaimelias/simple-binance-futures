@@ -83,7 +83,6 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
         stopPrice: adjustedStopPrice,
         workingType: main.workingType,
         closePosition: true,
-        reduceOnly: true,
         placeType: 'position',
         priceProtect: true,
         workingType
@@ -98,7 +97,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in createStopLossOrder: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
+        throw new Error(`Error in createTakeProfitOrder: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
     }
     
     return response
