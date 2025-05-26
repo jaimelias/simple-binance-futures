@@ -28,7 +28,18 @@ export default class BinanceFutures {
 
       this.errorHandler = new ErrorHandler(this.callbacks)
   
-      const {settlementCurrency, symbol, leverage, marginType = 'ISOLATED', environment, debug = false,  useServerTime = false, useMarkPrice = false} = strategy
+      const {
+        settlementCurrency, 
+        symbol, leverage, 
+        marginType = 'ISOLATED', 
+        environment, 
+        debug = false,  
+        useServerTime = false, 
+        useMarkPrice = false,
+        leverageBracket = {},
+        contractInfo = {},
+        balance = 0
+      } = strategy
   
       validateEnvironment(environment)
       validateCredentials(credentials, environment)
@@ -50,9 +61,9 @@ export default class BinanceFutures {
       this.debug = debug
       
       this.workingType = (useMarkPrice) ? 'MARK_PRICE' : 'CONTRACT_PRICE'
-      
-      
-      this.cache = {}
+      this.leverageBracket = leverageBracket
+      this.contractInfo = contractInfo
+      this.balance = balance
       this.latestPrice = 0
     }
   
@@ -100,14 +111,12 @@ export default class BinanceFutures {
     async getBalance(reloadBalances = true) {
   
       return this.errorHandler.init(async () => {
-        const {contractName} = this
-        const cacheKey = `balance_${contractName}`
 
-        if(reloadBalances === false && this.cache.hasOwnProperty(cacheKey) && this.cache[cacheKey] !== 0) {
-          return this.cache[cacheKey]
+        if(reloadBalances === false && this.balance) {
+          return this.balance
         }
     
-        const data = await this.fetch('balance', 'GET', {}, 'v2');
+        const data = await this.fetch('balance', 'GET', {}, 'v2')
     
         const findUSDT = data.find(a => a.asset === this.settlementCurrency)
     
@@ -116,7 +125,7 @@ export default class BinanceFutures {
           const balance = parseFloat(findUSDT.balance)
 
           if(reloadBalances) {
-            this.cache[cacheKey] = balance
+            this.balance = balance
           }
           
           return balance
@@ -131,9 +140,8 @@ export default class BinanceFutures {
       
       return this.errorHandler.init(async () => {
         const {contractName} = this
-        const cacheKey = `contract_${contractName}`
     
-        if(this.cache.hasOwnProperty(cacheKey)) return this.cache[cacheKey]
+        if(this.contractInfo.hasOwnProperty('symbol')) return this.contractInfo
     
         const data = await this.fetch(`exchangeInfo`, 'GET', { })
     
@@ -144,7 +152,7 @@ export default class BinanceFutures {
           throw new Error(`contract ${contractName} not fund`)
         }
     
-        this.cache[cacheKey] = findContract
+        this.contractInfo = findContract
     
         return findContract;
       })
@@ -301,6 +309,64 @@ export default class BinanceFutures {
         return await closePosition({main: this, positions, side})
       })
 
+    }
+
+    async getLeverageBracket()
+    {
+      return this.errorHandler.init(async () => {
+
+        if(typeof this.leverageBracket === 'object' && this.leverageBracket.hasOwnProperty('brackets'))
+        {
+          return this.leverageBracket
+        }
+
+        const data = await this.fetch('leverageBracket', 'GET')
+
+        if (!Array.isArray(data) || data.length === 0 || !Array.isArray(data[0].brackets) || data[0].brackets.length === 0) {
+          throw new Error(`Leverage bracket data not available for contractName: ${this.contractName}`);
+        }
+
+        this.leverageBracket = data[0]; // For single symbol
+
+        return this.leverageBracket
+      })  
+    }
+
+    async getMaxLevarage(notional)
+    {
+      return this.errorHandler.init(async () => {
+
+        if(typeof notional !== 'number' || Number.isNaN(notional))
+        {
+          throw new Error(`Param "notional" must be a number in the settlement currency of the contract.`)
+        }
+
+        const leverageBracket = await this.getLeverageBracket()
+        const coef = leverageBracket.notionalCoef ?? 1;
+        const effectiveNotional = notional * coef;
+
+        const brackets = leverageBracket.brackets;
+
+        for (const bracket of brackets) {
+          if (
+            effectiveNotional >= bracket.notionalFloor &&
+            effectiveNotional < bracket.notionalCap
+          ) {
+            return {
+              maxLeverage: bracket.initialLeverage,
+              leverageBracket
+            }
+          }
+        }
+
+        // If notional is above all brackets
+        const last = brackets[brackets.length - 1];
+        return {
+          maxLeverage: last?.initialLeverage ?? null,
+          leverageBracket,
+        }
+
+      })
     }
     
   }

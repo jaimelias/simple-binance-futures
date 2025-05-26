@@ -73,7 +73,7 @@ export const validateStrategy = (strategy) => {
     }
   
     const leverage = strategy.leverage;
-    if (typeof leverage !== 'number' || isNaN(leverage) || leverage <= 0) {
+    if ((typeof leverage !== 'number' && leverage !== Infinity) || isNaN(leverage) || leverage <= 0) {
       throw new Error('Invalid "leverage". It must be a positive number.')
     }
 
@@ -83,6 +83,30 @@ export const validateStrategy = (strategy) => {
       if(typeof strategy.useMarkPrice !== 'boolean')
       {
         throw new Error('Invalid "useMarkPrice" property in strategy object. Only boolean value is accepted')
+      }
+    }
+
+    if(strategy.hasOwnProperty('leverageBracket'))
+    {
+      if(typeof strategy.leverageBracket !== 'object' || !strategy.leverageBracket.hasOwnProperty('brackets'))
+      {
+        throw new Error('Invalid "leverageBracket" property in strategy object. Only objects with the property "brackets" are accepted.')
+      }
+    }
+
+    if(strategy.hasOwnProperty('contractInfo'))
+    {
+      if(typeof strategy.contractInfo !== 'object' || !strategy.contractInfo.hasOwnProperty('symbol'))
+      {
+        throw new Error('Invalid "contractInfo" property in strategy object. Only objects with the property "symbol" are accepted.')
+      }
+    }
+
+    if(strategy.hasOwnProperty('balance'))
+    {
+      if(typeof strategy.balance !== 'number')
+      {
+        throw new Error('Invalid "balance" property in strategy object. Only numbers are accepted.')
       }
     }
 

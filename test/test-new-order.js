@@ -24,7 +24,7 @@ const STRATEGY = {
   symbol: 'BTC',
   settlementCurrency: 'USDT',
   marginType: 'ISOLATED',
-  leverage: 50,
+  leverage: Infinity,
   useServerTime: false,
   debug: true,
   useMarkPrice: false
@@ -38,8 +38,6 @@ const errorLogger = async (message) => {
 const CALLBACKS = {fetch, crypto, errorLogger}
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
-
-//console.log(JSON.stringify(await exchange.getContractInfo()))
 
 console.log(JSON.stringify(await exchange.ohlcv([{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}])))
 
