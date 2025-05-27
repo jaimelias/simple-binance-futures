@@ -39,13 +39,8 @@ const CALLBACKS = {fetch, crypto, errorLogger}
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
-await exchange.getContractInfo()
-await exchange.getExchangeInfo()
-await exchange.getExchangeInfo()
 
-//console.log(JSON.stringify(await exchange.ohlcv([{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}])))
-
-//console.log(positions)
+console.log(await exchange.getParsedPositions())
 
 /* await exchange.createLimitOrder({
     side: 'SELL', 
@@ -59,10 +54,3 @@ await exchange.getExchangeInfo()
 
 //await exchange.changeLeverage()
 //await exchange.changeMarginType()
-
-/* console.log((await exchange.getTradingData({
-  ohlcvConfig: [{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}],
-  reloadBalances: false,
-  reloadMarginType: false,
-  reloadLeverage: false
-}))) */

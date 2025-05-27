@@ -7,7 +7,6 @@ import { createStopLossOrder } from './src/actions/createStopLossOrder.js'
 import { millisecondsToDateStr } from './src/utilities/utilities.js'
 import { closePosition } from './src/actions/closePosition.js'
 import { modifyLimitOrder } from './src/actions/modifyLimitOrder.js'
-import { getTradingData } from './src/getters/getTradingData.js'
 import ErrorHandler from './src/utilities/ErrorHandler.js'
 
 export const defaultEndpoints = {
@@ -85,14 +84,6 @@ export default class BinanceFutures {
       })
       
     }
-  
-    async getTradingData({ohlcvConfig = [], reloadBalances = true}) {
-
-      return this.errorHandler.init(async () => {
-        return await getTradingData({main: this, ohlcvConfig, reloadBalances})
-      })
-
-    }
 
     // ----------- Example Methods -----------
     async getOrders() {
@@ -101,6 +92,47 @@ export default class BinanceFutures {
         return await this.fetch('openOrders', 'GET', { });
       })
     }
+
+    async getParsedOrders(){
+
+      const parsedOrders = {
+        orders: {
+          BUY: [],
+          SELL: []
+        },
+        sl: {
+          BUY: [],
+          SELL: []
+        },
+        tp: {
+          BUY: [],
+          SELL: []
+        }
+      }
+
+      const unparsedOrders = await this.getOrders()
+
+      for(const order of unparsedOrders)
+      {
+        const {type, side, reduceOnly, closePosition} = order
+
+          if(['MARKET', 'LIMIT', 'STOP'].includes(type) && reduceOnly === false && closePosition === false)
+          {
+            parsedOrders.orders[side].push(order)
+          }
+          else if(type === 'STOP_MARKET' && reduceOnly && closePosition)
+          {
+            parsedOrders.sl[side].push(order)
+          }
+          else if(type === 'TAKE_PROFIT_MARKET' && reduceOnly && closePosition)
+          {
+            parsedOrders.tp[side].push(order)
+          }
+      }
+
+      return parsedOrders
+
+    }
   
     async getPositions() {
   
@@ -108,6 +140,27 @@ export default class BinanceFutures {
         return await this.fetch('positionRisk', 'GET', { }, 'v3')
       })
 
+    }
+
+    async getParsedPositions() {
+
+      const parsedPositions = {
+        BUY: [],
+        SELL: []
+      }
+
+      const unparsedPositions = await this.getPositions()
+
+      for(const position of unparsedPositions)
+      {
+        const amount = parseFloat(position.positionAmt)
+
+        if(amount > 0) parsedPositions.BUY.push(position)
+        if(amount < 0) parsedPositions.SELL.push(position)
+        else continue
+      }
+
+      return parsedPositions
     }
   
     async getBalance(reloadBalances = true) {
