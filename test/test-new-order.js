@@ -39,7 +39,11 @@ const CALLBACKS = {fetch, crypto, errorLogger}
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
-console.log(JSON.stringify(await exchange.ohlcv([{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}])))
+await exchange.getContractInfo()
+await exchange.getExchangeInfo()
+await exchange.getExchangeInfo()
+
+//console.log(JSON.stringify(await exchange.ohlcv([{interval: '5m', limit: 100, klineType: 'indexPriceKlines'}])))
 
 //console.log(positions)
 

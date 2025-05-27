@@ -37,6 +37,7 @@ export default class BinanceFutures {
         useServerTime = false, 
         useMarkPrice = false,
         leverageBracket = {},
+        exchangeInfo = {},
         contractInfo = {},
         balance = 0
       } = strategy
@@ -61,6 +62,7 @@ export default class BinanceFutures {
       this.debug = debug
       
       this.workingType = (useMarkPrice) ? 'MARK_PRICE' : 'CONTRACT_PRICE'
+      this.exchangeInfo = exchangeInfo
       this.leverageBracket = leverageBracket
       this.contractInfo = contractInfo
       this.balance = balance
@@ -136,16 +138,29 @@ export default class BinanceFutures {
 
     }
   
+    async getExchangeInfo() {
+      return this.errorHandler.init(async () => {
+    
+        if(typeof this.exchangeInfo !== 'object' || !this.exchangeInfo.hasOwnProperty('symbols'))
+        {
+          this.exchangeInfo = await this.fetch(`exchangeInfo`, 'GET', { })
+          return this.exchangeInfo
+        }
+
+        return this.exchangeInfo;
+      })
+    }
+
     async getContractInfo() {
       
       return this.errorHandler.init(async () => {
         const {contractName} = this
     
         if(this.contractInfo.hasOwnProperty('symbol')) return this.contractInfo
+
+        const exchangeInfo = await this.getExchangeInfo()
     
-        const data = await this.fetch(`exchangeInfo`, 'GET', { })
-    
-        const findContract = data.symbols.find(o => o.symbol === contractName)
+        const findContract = exchangeInfo.symbols.find(o => o.symbol === contractName)
     
         if(typeof findContract === 'undefined')
         {
