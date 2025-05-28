@@ -69,7 +69,8 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
     // Validate stop price for the given position
     if ((side === 'SELL' && adjustedStopPrice >= parseFloat(entryPrice)) || (side === 'BUY' && adjustedStopPrice <= parseFloat(entryPrice))) {
-        throw new Error(`Invalid take-profit triggerPrice "${triggerPrice}" for ${side} position.`);
+        await main.closePosition({positions, side})
+        throw new Error(`Invalid take-profit triggerPrice "${triggerPrice}" for ${side} position forced to close position.`);
     }
 
 
@@ -97,7 +98,8 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in createTakeProfitOrder: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
+        await main.closePosition({positions, side})
+        throw new Error(`Error in createTakeProfitOrder forced to close position: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
     }
     
     return response

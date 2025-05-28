@@ -54,7 +54,8 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
 
     // Validate stop price for the given position
     if ((side === 'SELL' && adjustedStopPrice <= parseFloat(entryPrice)) || (side === 'BUY' && adjustedStopPrice >= parseFloat(entryPrice))) {
-        throw new Error(`Invalid stop-loss triggerPrice "${triggerPrice}" for ${side} position.`);
+        await main.closePosition({positions, side})
+        throw new Error(`Invalid stop-loss triggerPrice "${triggerPrice}" for ${side} position forced to close position.`);
     }
 
 
@@ -82,7 +83,8 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in createStopLossOrder: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
+        await main.closePosition({positions, side})
+        throw new Error(`Error in createStopLossOrder forced to close position: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
     }
     
     return response
