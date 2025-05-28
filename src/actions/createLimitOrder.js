@@ -46,6 +46,14 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
     }
 
     const contractInfo = await main.getContractInfo()
+    main.leverage = (main.leverage <= 5) ? main.leverage : Math.min(await main.getMaxLevarage(amountInUSD), main.leverage)
+
+    console.log(main.leverage)
+
+    await main.changeLeverage()
+
+    
+
     const quantity = calculateQuantity(amountInUSD, main.leverage, contractInfo, entryPrice)
 
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')

@@ -40,17 +40,20 @@ const CALLBACKS = {fetch, crypto, errorLogger}
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
 
-console.log(await exchange.getParsedPositions())
+//console.log((await exchange.ohlcv({limit: 400, interval: '5m'})).at(-1))
 
-/* await exchange.createLimitOrder({
-    side: 'SELL', 
+//console.log(new Date(await exchange.getServerTime()).getMinutes())
+
+//console.log(await exchange.getMaxLevarage(125))
+
+await exchange.createLimitOrder({
+    side: 'BUY', 
     amountInUSD: 15, 
-    entryPrice: 101000,
-    fraction: 0.001,
+    entryPrice: 89000,
     expirationInMinutes: 10,
     handleExistingOrders: 'REPLACE',
     ignoreImmediateExecErr: false
-}) */
+})
 
 //await exchange.changeLeverage()
 //await exchange.changeMarginType()

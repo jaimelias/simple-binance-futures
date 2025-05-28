@@ -343,6 +343,8 @@ export default class BinanceFutures {
         if (!Array.isArray(data[0])) {
           throw new Error('Invalid response in "ohlcv".')
         }
+
+        console.log(data.map(([timestamp]) => new Date(timestamp).toISOString()).at(-1))
       
         const output =  data.map(([timestamp, open, high, low, close, volume]) => ({
           open: parseFloat(open),
@@ -420,18 +422,14 @@ export default class BinanceFutures {
             effectiveNotional >= bracket.notionalFloor &&
             effectiveNotional < bracket.notionalCap
           ) {
-            return {
-              maxLeverage: bracket.initialLeverage,
-              leverageBracket
-            }
+            return bracket.initialLeverage
           }
         }
 
         // If notional is above all brackets
         const last = brackets[brackets.length - 1];
         return {
-          maxLeverage: last?.initialLeverage ?? null,
-          leverageBracket,
+          maxLeverage: last?.initialLeverage ?? null
         }
 
       })
