@@ -1,6 +1,7 @@
 import { calculateQuantity } from '../utilities/calculateQuantity.js'
 import { validateCreateLimitOrder } from '../utilities/validators.js'
 import { getOrderExpirationParams } from '../utilities/utilities.js'
+import { keyPairObjToString } from '../utilities/ErrorHandler.js'
 
 /**
  * Creates a limit order with the specified parameters.
@@ -45,8 +46,9 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
         return false
     }
 
+    const {contractName, leverage} = main
     const contractInfo = await main.getContractInfo()
-    const quantity = calculateQuantity(amountInUSD, main.leverage, contractInfo, entryPrice)
+    const quantity = calculateQuantity(amountInUSD, leverage, contractInfo, entryPrice)
 
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
 
@@ -78,7 +80,7 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in createLimitOrder: ${JSON.stringify({...response, entryPrice, adjustedEntryPrice, side, quantity, tickSize})}`)
+        throw new Error(`Error in createLimitOrder: ${keyPairObjToString({contractName, leverage, amountInUSD, ...response, entryPrice, adjustedEntryPrice, side, quantity, tickSize})}`)
     }
 
     return response

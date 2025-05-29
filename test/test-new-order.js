@@ -21,7 +21,7 @@ import crypto from 'node:crypto'
 
 const STRATEGY = {
   environment: 'testnet',
-  symbol: 'BTC',
+  symbol: 'PAXG',
   settlementCurrency: 'USDT',
   marginType: 'ISOLATED',
   leverage: Infinity,
@@ -46,12 +46,16 @@ const amountInUSD = 150
 
 //console.log(await exchange.getMaxLevarage(125))
 
+
+
 await exchange.changeLeverage(50, amountInUSD)
+
+console.log(await exchange.getMaxLevarage(2500))
 
 await exchange.createLimitOrder({
     side: 'BUY', 
     amountInUSD, 
-    entryPrice: 89000,
+    entryPrice: 2500,
     expirationInMinutes: 10,
     handleExistingOrders: 'REPLACE',
     ignoreImmediateExecErr: false

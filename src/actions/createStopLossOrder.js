@@ -1,4 +1,5 @@
 import { validateReduceOrders } from "../utilities/validators.js"
+import { keyPairObjToString } from "../utilities/ErrorHandler.js"
 
 /**
  * Creates a stop-loss market order for an existing position.
@@ -44,6 +45,7 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
       return true
     }
 
+    const {contractName, workingType} = main
     const { entryPrice, positionAmt } = position;
     const side = (parseFloat(positionAmt) > 0) ? 'BUY' : 'SELL'
     const contractInfo = await main.getContractInfo();
@@ -60,14 +62,14 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
 
 
     const payload = {
-        symbol: main.contractName,
+        symbol: contractName,
         side: side === 'BUY' ? 'SELL' : 'BUY',
         positionSide: 'BOTH',
         type,
         timeInForce: 'GTE_GTC',
         quantity: 0, // Close entire position
         stopPrice: adjustedStopPrice,
-        workingType: main.workingType,
+        workingType,
         closePosition: true,
         placeType: 'position',
         priceProtect: true,
@@ -84,7 +86,7 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
     if(!response.hasOwnProperty('orderId'))
     {
         await main.closePosition({positions, side})
-        throw new Error(`Error in createStopLossOrder forced to close position: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
+        throw new Error(`Error in createStopLossOrder forced to close position: ${keyPairObjToString({contractName, ...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
     }
     
     return response

@@ -105,7 +105,13 @@ export const validateStrategy = (strategy) => {
 
 
 export const validateCreateLimitOrder = ({main, side, leverage, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, ignoreImmediateExecErr}) => {
-    if(!side || !['BUY', 'SELL'].includes(side))
+    
+  if(!main.leverage || typeof main.leverage !== 'number')
+  {
+    throw new Error('Before executing createLimitOrder, execute changeLeverage(leverage, amountInUsd). ');
+  }
+
+  if(!side || !['BUY', 'SELL'].includes(side))
         {
             throw new Error('Invalid or missing property "side" in createLimitOrder.');
         }
@@ -244,6 +250,12 @@ export const validateCallbacks = (callbacks = {}, engine) => {
 
 
 export const validateStopLimitOrder = ({main, side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes}) => {
+  
+  if(!main.leverage || typeof main.leverage !== 'number')
+  {
+    throw new Error('Before executing createLimitOrder, execute changeLeverage(leverage, amountInUsd). ');
+  }
+  
   if(!side || !['BUY', 'SELL'].includes(side))
       {
           throw new Error('Invalid or missing property "side" in validateStopLimitOrder.');

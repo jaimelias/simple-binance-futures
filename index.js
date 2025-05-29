@@ -64,7 +64,7 @@ export default class BinanceFutures {
       this.leverageBracket = leverageBracket
       this.contractInfo = contractInfo
       this.balance = balance
-      this.leverage = 1
+      this.leverage = null
       this.latestPrice = 0
     }
   
@@ -238,9 +238,6 @@ export default class BinanceFutures {
         const maxLeverage = await this.getMaxLevarage(notional)
 
         const leverage = Math.floor(Math.min(leverageParam, maxLeverage))
-
-        console.log(`Leverage changed to ${leverage}`)
-
         this.leverage = leverage
 
         await this.fetch('leverage', 'POST', {leverage})

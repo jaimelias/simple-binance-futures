@@ -1,4 +1,5 @@
 import { getOrderExpirationParams } from '../utilities/utilities.js'
+import { keyPairObjToString } from '../utilities/ErrorHandler.js';
 
 export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, expirationInMinutes = 10}) => {
     // Validate that price is a number
@@ -41,8 +42,10 @@ export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, ex
         return false
     }
 
+    const {contractName} = main
+
     const order = (Array.isArray(orders))
-    ? orders.find(o => o.symbol === main.contractName && o.type === 'LIMIT' && validSide(o))
+    ? orders.find(o => o.symbol === contractName && o.type === 'LIMIT' && validSide(o))
     : false
 
     const { orderId, origQty, executedQty, price: prevEntryPrice } = order;
@@ -58,6 +61,7 @@ export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, ex
         throw new Error('Remaining quantity must be greater than zero.');
     }
 
+    
     const contractInfo = await main.getContractInfo()
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
 
@@ -96,7 +100,7 @@ export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, ex
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in modifyLimitOrder: ${JSON.stringify({...response, entryPrice, adjustedEntryPrice, side, quantity, tickSize})}`)
+        throw new Error(`Error in modifyLimitOrder: ${keyPairObjToString({contractName, ...response, entryPrice, adjustedEntryPrice, side, quantity, tickSize})}`)
     }
 
     return response;

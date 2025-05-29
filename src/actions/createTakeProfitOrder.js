@@ -1,4 +1,5 @@
 import { validateReduceOrders } from "../utilities/validators.js"
+import { keyPairObjToString } from "../utilities/ErrorHandler.js"
 
 /**
  * Creates a take-profit market order for an existing position.
@@ -59,6 +60,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
       return true
     }
    
+    const {contractName} = main
     const { entryPrice, positionAmt } = position;
     const side = (parseFloat(positionAmt) > 0) ? 'BUY' : 'SELL'
     const contractInfo = await main.getContractInfo(); // Fetch contract details for precision
@@ -75,7 +77,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
 
     const payload = {
-        symbol: main.contractName,
+        symbol: contractName,
         side: side === 'BUY' ? 'SELL' : 'BUY',
         positionSide: 'BOTH',
         type,
@@ -99,7 +101,7 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
     if(!response.hasOwnProperty('orderId'))
     {
         await main.closePosition({positions, side})
-        throw new Error(`Error in createTakeProfitOrder forced to close position: ${JSON.stringify({...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
+        throw new Error(`Error in createTakeProfitOrder forced to close position: ${keyPairObjToString({contractName, ...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
     }
     
     return response

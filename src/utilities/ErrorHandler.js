@@ -17,3 +17,17 @@ export default class ErrorHandler {
         }
     }
 }
+
+export const keyPairObjToString = obj => {
+
+    if(typeof obj !== 'object') return ''
+
+    let output = '\n\n---\n\n'
+
+    for(const [key, value] of Object.entries(obj))
+    {
+        output += (typeof value === 'object') ? `${key}: ${JSON.stringify(value)}\n`: `${key}: ${value}\n`
+    }
+
+    return output
+}
