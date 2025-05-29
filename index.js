@@ -29,7 +29,7 @@ export default class BinanceFutures {
   
       const {
         settlementCurrency, 
-        symbol, leverage, 
+        symbol, 
         marginType = 'ISOLATED', 
         environment, 
         debug = false,  
@@ -54,7 +54,6 @@ export default class BinanceFutures {
 
       this.settlementCurrency = settlementCurrency
       this.contractName = `${symbol}${settlementCurrency}`
-      this.leverage = leverage
       this.marginType = marginType
       this.useServerTime = useServerTime
       this.environment = environment
@@ -65,6 +64,7 @@ export default class BinanceFutures {
       this.leverageBracket = leverageBracket
       this.contractInfo = contractInfo
       this.balance = balance
+      this.leverage = 1
       this.latestPrice = 0
     }
   
@@ -227,10 +227,25 @@ export default class BinanceFutures {
     
     }
   
-    async changeLeverage()
+    async changeLeverage(leverageParam, notional)
     {
       return this.errorHandler.init(async () => {
-        return await this.fetch('leverage', 'POST', {leverage: this.leverage})
+
+        if ((typeof leverageParam !== 'number' && leverageParam !== Infinity) || Number.isNaN(leverageParam) || leverageParam <= 0) {
+          throw new Error('Invalid "leverageParam". It must be a positive number greater than 0 in "changeLeverage".')
+        }
+
+        const maxLeverage = await this.getMaxLevarage(notional)
+
+        const leverage = Math.floor(Math.min(leverageParam, maxLeverage))
+
+        console.log(`Leverage changed to ${leverage}`)
+
+        this.leverage = leverage
+
+        await this.fetch('leverage', 'POST', {leverage})
+
+        return leverage
       })
 
     }

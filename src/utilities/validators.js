@@ -43,10 +43,7 @@ export const validateStrategy = (strategy) => {
     {
       throw new Error('Invalid "symbol" property in strategy object.')
     }
-  
-    if (!strategy.hasOwnProperty('leverage')) {
-      throw new Error('Missing "leverage" property in strategy object.')
-    }
+
   
     if(strategy.hasOwnProperty('marginType'))
     {
@@ -71,12 +68,6 @@ export const validateStrategy = (strategy) => {
         throw new Error('Invalid "debug" property in strategy object. Only boolean value is accepted')
       }
     }
-  
-    const leverage = strategy.leverage;
-    if ((typeof leverage !== 'number' && leverage !== Infinity) || isNaN(leverage) || leverage <= 0) {
-      throw new Error('Invalid "leverage". It must be a positive number.')
-    }
-
 
     if(strategy.hasOwnProperty('useMarkPrice'))
     {
@@ -113,7 +104,7 @@ export const validateStrategy = (strategy) => {
   }
 
 
-export const validateCreateLimitOrder = ({main, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, ignoreImmediateExecErr}) => {
+export const validateCreateLimitOrder = ({main, side, leverage, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, ignoreImmediateExecErr}) => {
     if(!side || !['BUY', 'SELL'].includes(side))
         {
             throw new Error('Invalid or missing property "side" in createLimitOrder.');

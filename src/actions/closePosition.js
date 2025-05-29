@@ -44,7 +44,6 @@ export const closePosition = async ({main, positions, side}) => {
         quantity,
         reduceOnly: true,
         isolated: main.marginType === 'ISOLATED',
-        leverage: main.leverage,
         placeType: 'position',
         positionSide: 'BOTH'
     }

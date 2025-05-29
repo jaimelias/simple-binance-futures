@@ -39,16 +39,18 @@ const CALLBACKS = {fetch, crypto, errorLogger}
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
-
+const amountInUSD = 150
 //console.log((await exchange.ohlcv({limit: 400, interval: '5m'})).at(-1))
 
 //console.log(new Date(await exchange.getServerTime()).getMinutes())
 
 //console.log(await exchange.getMaxLevarage(125))
 
+await exchange.changeLeverage(50, amountInUSD)
+
 await exchange.createLimitOrder({
     side: 'BUY', 
-    amountInUSD: 15, 
+    amountInUSD, 
     entryPrice: 89000,
     expirationInMinutes: 10,
     handleExistingOrders: 'REPLACE',
