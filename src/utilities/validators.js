@@ -181,7 +181,7 @@ export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
 
 }
 
-export const validateOhlcv = ({ interval, limit = 500, startTime, endTime }) => {
+export const validateOhlcv = ({ interval, limit, startTime, endTime }) => {
   // List of valid intervals
   const validIntervals = [
     "1m", "3m", "5m", "15m", "30m", 
@@ -249,7 +249,7 @@ export const validateCallbacks = (callbacks = {}, engine) => {
 };
 
 
-export const validateStopLimitOrder = ({main, side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes}) => {
+export const validateStopLimitOrder = ({main, side, amountInUSD, stopPrice, limitPrice, handleExistingOrders, expirationInMinutes}) => {
   
   if(!main.leverage || typeof main.leverage !== 'number')
   {
@@ -265,13 +265,13 @@ export const validateStopLimitOrder = ({main, side, amountInUSD, entryPrice, fra
       throw new Error('Missing or invalid "amountInUSD" in createStopLimitOrder. "amountInUSD" must be a positive number.');
   }
 
-  if(typeof entryPrice !== 'number' || entryPrice <= 0)
+  if(typeof stopPrice !== 'number' || stopPrice <= 0)
   {
-      throw new Error('Missing or invalid "entryPrice" in createStopLimitOrder. "entryPrice" must be a positive number.');
+      throw new Error('Missing or invalid "stopPrice" in createStopLimitOrder. "stopPrice" must be a positive number.');
   }
-  if(typeof fraction !== 'number' || fraction <= 0)
+  if(typeof limitPrice !== 'number' || limitPrice <= 0)
   {
-      throw new Error('Missing or invalid "fraction" in createStopLimitOrder. "fraction" must be a positive number.');
+      throw new Error('Missing or invalid "limitPrice" in createStopLimitOrder. "limitPrice" must be a positive number.');
   }
 
   if(typeof expirationInMinutes !== 'undefined')
@@ -293,13 +293,13 @@ export const validateStopLimitOrder = ({main, side, amountInUSD, entryPrice, fra
 
   if(main.hasOwnProperty('latestPrice') && main.latestPrice > 0 )
   {
-      if(side === 'BUY' && entryPrice < main.latestPrice)
+      if(side === 'BUY' && stopPrice < main.latestPrice)
       {
-        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "BUY" the "entryPrice" (${entryPrice}) must be greater than the latest close price (${main.latestPrice}).`);
+        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "BUY" the "entryPrice" (${stopPrice}) must be greater than the latest close price (${main.latestPrice}).`);
       }
-      if(side === 'SELL' && entryPrice > main.latestPrice)
+      if(side === 'SELL' && stopPrice > main.latestPrice)
       {
-        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "SELL" the "entryPrice" (${entryPrice}) must be less than the latest close price (${main.latestPrice}).`);
+        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "SELL" the "entryPrice" (${stopPrice}) must be less than the latest close price (${main.latestPrice}).`);
       }
   }
 } 

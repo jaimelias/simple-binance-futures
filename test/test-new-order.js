@@ -21,7 +21,7 @@ import crypto from 'node:crypto'
 
 const STRATEGY = {
   environment: 'testnet',
-  symbol: 'PAXG',
+  symbol: 'BTC',
   settlementCurrency: 'USDT',
   marginType: 'ISOLATED',
   leverage: Infinity,
@@ -39,7 +39,7 @@ const CALLBACKS = {fetch, crypto, errorLogger}
 
 const exchange = new BinanceFutures(CREDENTIALS, STRATEGY, CALLBACKS)
 
-const amountInUSD = 150
+const amountInUSD = 10000
 //console.log((await exchange.ohlcv({limit: 400, interval: '5m'})).at(-1))
 
 //console.log(new Date(await exchange.getServerTime()).getMinutes())
@@ -48,18 +48,32 @@ const amountInUSD = 150
 
 
 
-await exchange.changeLeverage(50, amountInUSD)
+console.log(await exchange.changeLeverage(50, amountInUSD))
 
-console.log(await exchange.getMaxLevarage(2500))
+console.log(await exchange.getMaxLevarage(amountInUSD))
 
-await exchange.createLimitOrder({
-    side: 'BUY', 
+console.log(exchange.leverage)
+
+await exchange.createStopLimitOrder({
+    side: 'SELL', 
     amountInUSD, 
-    entryPrice: 2500,
+    stopPrice: 100000,
+    limitPrice: 101000,
     expirationInMinutes: 10,
     handleExistingOrders: 'REPLACE',
     ignoreImmediateExecErr: false
 })
 
-//await exchange.changeLeverage()
-//await exchange.changeMarginType()
+/* await exchange.createTakeProfitOrder({
+  triggerPrice: 99000,
+  side: 'SELL',
+  handleExistingOrders: 'KEEP'
+})
+
+await exchange.createStopLossOrder({
+  triggerPrice: 102000,
+  side: 'SELL',
+  handleExistingOrders: 'KEEP'
+}) */
+
+console.log((await exchange.getParsedOrders()).orders)

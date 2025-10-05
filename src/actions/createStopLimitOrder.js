@@ -7,8 +7,8 @@ export const createStopLimitOrder = async ({
     main, 
     side = 'BUY', 
     amountInUSD, 
-    entryPrice, 
-    fraction, 
+    stopPrice, 
+    limitPrice, 
     handleExistingOrders, 
     expirationInMinutes = 10, 
     orders
@@ -24,9 +24,9 @@ export const createStopLimitOrder = async ({
         })
     }
 
-    validateStopLimitOrder({main, side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes})
+    validateStopLimitOrder({main, side, amountInUSD, stopPrice, limitPrice, handleExistingOrders, expirationInMinutes})
 
-    const ignoreOrder = await funcHandleExistingOrders({main, side, entryPrice, handleExistingOrders, orders})
+    const ignoreOrder = await funcHandleExistingOrders({main, side, stopPrice, limitPrice, handleExistingOrders, orders})
 
     if(ignoreOrder)
     {
@@ -34,12 +34,9 @@ export const createStopLimitOrder = async ({
         return false
     }
 
-    const stopPrice = entryPrice
-    const limitPrice = (side === 'BUY') ? entryPrice + (entryPrice * fraction) : entryPrice - (entryPrice * fraction)
-
     const contractInfo = await main.getContractInfo()
     const {contractName, leverage} = main
-    const quantity = calculateQuantity(amountInUSD, leverage, contractInfo, entryPrice)
+    const quantity = calculateQuantity(amountInUSD, leverage, contractInfo, limitPrice)
 
     const { tickSize } = contractInfo.filters.find(filter => filter.filterType === 'PRICE_FILTER')
 
@@ -74,14 +71,14 @@ export const createStopLimitOrder = async ({
 
     if(!response.hasOwnProperty('orderId'))
     {
-        throw new Error(`Error in createStopLimitOrder: ${keyPairObjToString({contractName, leverage, amountInUSD, ...response, entryPrice, side, quantity, tickSize})}`)
+        throw new Error(`Error in createStopLimitOrder: ${keyPairObjToString({contractName, leverage, amountInUSD, ...response, stopPrice, limitPrice, side, quantity, tickSize})}`)
     }
 
     return response
 
 }
 
-const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingOrders, orders}) => {
+const funcHandleExistingOrders = async ({main, side, stopPrice, limitPrice, handleExistingOrders, orders}) => {
 
     if(!orders)
     {
@@ -97,14 +94,14 @@ const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingO
         {
             if(main.debug)
             {
-            console.log(`New order (entryPrice=${entryPrice}, side=${side}) not executed. Found existing orders:`, existingOrders)
+            console.log(`New order (stopPrice=${stopPrice}, limitPrice=${limitPrice} side=${side}) not executed. Found existing orders:`, existingOrders)
             }
             return true;
         }
         //ERROR throws error if existing orders are found
         else if(handleExistingOrders === 'ERROR')
         {
-        throw Error(`New order (entryPrice=${entryPrice}, side=${side}) not executed. Found duplicated orders: ${JSON.stringify(existingOrders)}`)
+            throw Error(`New order (stopPrice=${stopPrice}, limitPrice=${limitPrice} side=${side}) not executed. Found duplicated orders: ${JSON.stringify(existingOrders)}`)
         }
         //REPLACE cancels existig orders and creates a new one
         else if(handleExistingOrders === 'REPLACE')

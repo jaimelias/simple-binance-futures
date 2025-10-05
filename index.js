@@ -282,10 +282,10 @@ export default class BinanceFutures {
 
     }
 
-    async createStopLimitOrder({side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes, orders}) {
+    async createStopLimitOrder({side, amountInUSD, stopPrice, limitPrice, handleExistingOrders, expirationInMinutes, orders}) {
       
       return this.errorHandler.init(async () => {
-        return await createStopLimitOrder({main: this, side, amountInUSD, entryPrice, fraction, handleExistingOrders, expirationInMinutes, orders})
+        return await createStopLimitOrder({main: this, side, amountInUSD, stopPrice, limitPrice, handleExistingOrders, expirationInMinutes, orders})
       })
 
     }
