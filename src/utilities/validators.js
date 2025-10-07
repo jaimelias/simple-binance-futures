@@ -101,65 +101,7 @@ export const validateStrategy = (strategy) => {
       }
     }
 
-  }
-
-
-export const validateCreateLimitOrder = ({main, side, leverage, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, ignoreImmediateExecErr}) => {
-    
-  if(!main.leverage || typeof main.leverage !== 'number')
-  {
-    throw new Error('Before executing createLimitOrder, execute changeLeverage(leverage, amountInUsd). ');
-  }
-
-  if(!side || !['BUY', 'SELL'].includes(side))
-        {
-            throw new Error('Invalid or missing property "side" in createLimitOrder.');
-        }
-    if(typeof amountInUSD !== 'number' || amountInUSD <= 0)
-    {
-        throw new Error('Missing or invalid "amountInUSD" in createLimitOrder. "amountInUSD" must be a positive number.');
-    }
-
-    if(typeof entryPrice !== 'number' || entryPrice <= 0)
-    {
-        throw new Error('Missing or invalid "entryPrice" in createLimitOrder. "entryPrice" must be a positive number.');
-    }
-
-    if(typeof expirationInMinutes !== 'undefined')
-    {
-        if(typeof expirationInMinutes === 'number' && expirationInMinutes >= 10)
-        {
-            //do nothing
-        }
-        else
-        {
-            throw new Error('Invalid "expirationInMinutes" in createLimitOrder. "expirationInMinutes" must be a positive number greater than or equal to 10.');
-        }
-    }
-
-    if(!handleExistingOrders || !['KEEP', 'ERROR', 'REPLACE', 'ADD'].includes(handleExistingOrders))
-    {
-        throw new Error('Invalid "handleExistingOrders" property in "createLimitOrder". Only "KEEP", "ERROR", "REPLACE", and "ADD" strings are supported. Defaults to "ADD".');
-    }
-
-    if(typeof ignoreImmediateExecErr !== 'boolean')
-    {
-      throw new Error('Invalid property "side" in "ignoreImmediateExecErr". "ignoreImmediateExecErr" must be a boolean.');
-    }
-    else{
-      if(ignoreImmediateExecErr === false && main.hasOwnProperty('latestPrice') && main.latestPrice > 0 )
-      {
-        if(side === 'BUY' && entryPrice > main.latestPrice)
-        {
-          throw new Error(`Immediate order execution error. In "createLimitOrder" side "BUY" the "entryPrice" (${entryPrice}) must be less than the latest close price (${main.latestPrice}).`);
-        }
-        if(side === 'SELL' && entryPrice < main.latestPrice)
-        {
-          throw new Error(`Immediate order execution error. In "createLimitOrder" side "SELL" the "entryPrice" (${entryPrice}) must be greater than the latest close price (${main.latestPrice}).`);
-        }
-      }
-    }
-} 
+}
 
 
 export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
@@ -182,43 +124,60 @@ export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
 }
 
 export const validateOhlcv = ({ interval, limit, startTime, endTime }) => {
-  // List of valid intervals
   const validIntervals = [
-    "1m", "3m", "5m", "15m", "30m", 
-    "1h", "2h", "4h", "6h", "8h", 
-    "12h", "1d", "3d", "1w", "1M"
+    "1m","3m","5m","15m","30m",
+    "1h","2h","4h","6h","8h",
+    "12h","1d","3d","1w","1M"
   ];
 
+  // helpers
+  const isNil = v => v == null; // null or undefined
+  const toDate = (v) => {
+    if (v instanceof Date) return new Date(v.getTime());
+    if (typeof v === "number") return new Date(v);          // ms since epoch
+    if (typeof v === "string")  return new Date(v);          // ISO or parseable
+    return new Date(NaN);
+  };
 
-  // Validate interval
-  if (!interval) {
-    throw new Error('"interval" is required.');
-  }
-
-  if (!validIntervals.includes(interval)) {
+  // interval
+  if (isNil(interval) || !validIntervals.includes(interval)) {
     throw new Error(`Invalid "interval". Accepted values are: ${validIntervals.join(", ")}.`);
   }
 
-  // Validate limit
-  if (typeof limit !== "number" || limit < 1 || limit > 1500) {
-    throw new Error('"limit" must be a number between 1 and 1500 (inclusive).');
-  }
+  const hasLimit = !isNil(limit);
+  const hasStart = !isNil(startTime);
+  const hasEnd   = !isNil(endTime);
 
-  // If limit is provided, disallow startTime and endTime
-  if (limit && (startTime || endTime)) {
+  // exclusive config: (interval+limit) XOR (interval+startTime+endTime)
+  if (hasLimit && (hasStart || hasEnd)) {
     throw new Error('"ohlcv" does not accept "limit" together with "startTime" or "endTime".');
   }
 
-  // If limit is not provided, require both startTime and endTime
-  if (!limit && (!startTime || !endTime)) {
+  if (!hasLimit && !(hasStart && hasEnd)) {
     throw new Error('"ohlcv" requires either "limit" or both "startTime" and "endTime".');
   }
 
-  // Optional: Ensure startTime is before endTime if both are provided
-  if (startTime && endTime && new Date(startTime) >= new Date(endTime)) {
+  // limit (only if provided)
+  if (hasLimit) {
+    if (typeof limit !== "number" || !Number.isFinite(limit) || limit < 1 || limit > 1500) {
+      throw new Error('"limit" must be a finite number between 1 and 1500 (inclusive).');
+    }
+    return true; // valid: interval+limit
+  }
+
+  // start/end (only when limit not provided)
+  const s = toDate(startTime);
+  const e = toDate(endTime);
+
+  if (Number.isNaN(s.getTime())) throw new Error('"startTime" is not a valid date/time.');
+  if (Number.isNaN(e.getTime())) throw new Error('"endTime" is not a valid date/time.');
+  if (s.getTime() >= e.getTime()) {
     throw new Error('"startTime" must be earlier than "endTime".');
   }
-}
+
+  return true; // valid: interval+startTime+endTime
+};
+
 
 export const validateCallbacks = (callbacks = {}, engine) => {
   if (typeof callbacks !== 'object') {
@@ -247,59 +206,3 @@ export const validateCallbacks = (callbacks = {}, engine) => {
     }
   }
 };
-
-
-export const validateStopLimitOrder = ({main, side, amountInUSD, stopPrice, limitPrice, handleExistingOrders, expirationInMinutes}) => {
-  
-  if(!main.leverage || typeof main.leverage !== 'number')
-  {
-    throw new Error('Before executing createLimitOrder, execute changeLeverage(leverage, amountInUsd). ');
-  }
-  
-  if(!side || !['BUY', 'SELL'].includes(side))
-      {
-          throw new Error('Invalid or missing property "side" in validateStopLimitOrder.');
-      }
-  if(typeof amountInUSD !== 'number' || amountInUSD <= 0)
-  {
-      throw new Error('Missing or invalid "amountInUSD" in createStopLimitOrder. "amountInUSD" must be a positive number.');
-  }
-
-  if(typeof stopPrice !== 'number' || stopPrice <= 0)
-  {
-      throw new Error('Missing or invalid "stopPrice" in createStopLimitOrder. "stopPrice" must be a positive number.');
-  }
-  if(typeof limitPrice !== 'number' || limitPrice <= 0)
-  {
-      throw new Error('Missing or invalid "limitPrice" in createStopLimitOrder. "limitPrice" must be a positive number.');
-  }
-
-  if(typeof expirationInMinutes !== 'undefined')
-  {
-      if(typeof expirationInMinutes === 'number' && expirationInMinutes >= 10)
-      {
-          //do nothing
-      }
-      else
-      {
-          throw new Error('Invalid "expirationInMinutes" in createStopLimitOrder. "expirationInMinutes" must be a positive number greater than or equal to 10.');
-      }
-  }
-
-  if(!handleExistingOrders || !['KEEP', 'ERROR', 'REPLACE', 'ADD'].includes(handleExistingOrders))
-  {
-      throw new Error('Invalid "handleExistingOrders" property in "createStopLimitOrder". Only "KEEP", "ERROR", "REPLACE", and "ADD" strings are supported. Defaults to "ADD".');
-  }
-
-  if(main.hasOwnProperty('latestPrice') && main.latestPrice > 0 )
-  {
-      if(side === 'BUY' && stopPrice < main.latestPrice)
-      {
-        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "BUY" the "entryPrice" (${stopPrice}) must be greater than the latest close price (${main.latestPrice}).`);
-      }
-      if(side === 'SELL' && stopPrice > main.latestPrice)
-      {
-        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "SELL" the "entryPrice" (${stopPrice}) must be less than the latest close price (${main.latestPrice}).`);
-      }
-  }
-} 

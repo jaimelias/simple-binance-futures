@@ -1,5 +1,4 @@
 import { calculateQuantity } from '../utilities/calculateQuantity.js'
-import { validateCreateLimitOrder } from '../utilities/validators.js'
 import { getOrderExpirationParams } from '../utilities/utilities.js'
 import { keyPairObjToString } from '../utilities/ErrorHandler.js'
 
@@ -134,3 +133,60 @@ const funcHandleExistingOrders = async ({main, side, entryPrice, handleExistingO
 
     return false
 }
+
+export const validateCreateLimitOrder = ({main, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, ignoreImmediateExecErr}) => {
+    
+  if(!main.leverage || typeof main.leverage !== 'number')
+  {
+    throw new Error('Before executing createLimitOrder, execute changeLeverage(leverage, amountInUsd). ');
+  }
+
+  if(!side || !['BUY', 'SELL'].includes(side))
+        {
+            throw new Error('Invalid or missing property "side" in createLimitOrder.');
+        }
+    if(typeof amountInUSD !== 'number' || amountInUSD <= 0)
+    {
+        throw new Error('Missing or invalid "amountInUSD" in createLimitOrder. "amountInUSD" must be a positive number.');
+    }
+
+    if(typeof entryPrice !== 'number' || entryPrice <= 0)
+    {
+        throw new Error('Missing or invalid "entryPrice" in createLimitOrder. "entryPrice" must be a positive number.');
+    }
+
+    if(typeof expirationInMinutes !== 'undefined')
+    {
+        if(typeof expirationInMinutes === 'number' && expirationInMinutes >= 10)
+        {
+            //do nothing
+        }
+        else
+        {
+            throw new Error('Invalid "expirationInMinutes" in createLimitOrder. "expirationInMinutes" must be a positive number greater than or equal to 10.');
+        }
+    }
+
+    if(!handleExistingOrders || !['KEEP', 'ERROR', 'REPLACE', 'ADD'].includes(handleExistingOrders))
+    {
+        throw new Error('Invalid "handleExistingOrders" property in "createLimitOrder". Only "KEEP", "ERROR", "REPLACE", and "ADD" strings are supported. Defaults to "ADD".');
+    }
+
+    if(typeof ignoreImmediateExecErr !== 'boolean')
+    {
+      throw new Error('Invalid property "side" in "ignoreImmediateExecErr". "ignoreImmediateExecErr" must be a boolean.');
+    }
+    else{
+      if(ignoreImmediateExecErr === false && main.hasOwnProperty('latestPrice') && main.latestPrice > 0 )
+      {
+        if(side === 'BUY' && entryPrice > main.latestPrice)
+        {
+          throw new Error(`Immediate order execution error. In "createLimitOrder" side "BUY" the "entryPrice" (${entryPrice}) must be less than the latest close price (${main.latestPrice}).`);
+        }
+        if(side === 'SELL' && entryPrice < main.latestPrice)
+        {
+          throw new Error(`Immediate order execution error. In "createLimitOrder" side "SELL" the "entryPrice" (${entryPrice}) must be greater than the latest close price (${main.latestPrice}).`);
+        }
+      }
+    }
+} 

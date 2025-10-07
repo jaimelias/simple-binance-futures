@@ -1,5 +1,4 @@
 import { calculateQuantity } from '../utilities/calculateQuantity.js'
-import { validateStopLimitOrder } from '../utilities/validators.js'
 import { getOrderExpirationParams } from '../utilities/utilities.js'
 import { keyPairObjToString } from '../utilities/ErrorHandler.js'
 
@@ -126,3 +125,58 @@ const funcHandleExistingOrders = async ({main, side, stopPrice, limitPrice, hand
 
     return false
 }
+
+export const validateStopLimitOrder = ({main, side, amountInUSD, stopPrice, limitPrice, handleExistingOrders, expirationInMinutes}) => {
+  
+  if(!main.leverage || typeof main.leverage !== 'number')
+  {
+    throw new Error('Before executing createLimitOrder, execute changeLeverage(leverage, amountInUsd). ');
+  }
+  
+  if(!side || !['BUY', 'SELL'].includes(side))
+      {
+          throw new Error('Invalid or missing property "side" in validateStopLimitOrder.');
+      }
+  if(typeof amountInUSD !== 'number' || amountInUSD <= 0)
+  {
+      throw new Error('Missing or invalid "amountInUSD" in createStopLimitOrder. "amountInUSD" must be a positive number.');
+  }
+
+  if(typeof stopPrice !== 'number' || stopPrice <= 0)
+  {
+      throw new Error('Missing or invalid "stopPrice" in createStopLimitOrder. "stopPrice" must be a positive number.');
+  }
+  if(typeof limitPrice !== 'number' || limitPrice <= 0)
+  {
+      throw new Error('Missing or invalid "limitPrice" in createStopLimitOrder. "limitPrice" must be a positive number.');
+  }
+
+  if(typeof expirationInMinutes !== 'undefined')
+  {
+      if(typeof expirationInMinutes === 'number' && expirationInMinutes >= 10)
+      {
+          //do nothing
+      }
+      else
+      {
+          throw new Error('Invalid "expirationInMinutes" in createStopLimitOrder. "expirationInMinutes" must be a positive number greater than or equal to 10.');
+      }
+  }
+
+  if(!handleExistingOrders || !['KEEP', 'ERROR', 'REPLACE', 'ADD'].includes(handleExistingOrders))
+  {
+      throw new Error('Invalid "handleExistingOrders" property in "createStopLimitOrder". Only "KEEP", "ERROR", "REPLACE", and "ADD" strings are supported. Defaults to "ADD".');
+  }
+
+  if(main.hasOwnProperty('latestPrice') && main.latestPrice > 0 )
+  {
+      if(side === 'BUY' && stopPrice < main.latestPrice)
+      {
+        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "BUY" the "entryPrice" (${stopPrice}) must be greater than the latest close price (${main.latestPrice}).`);
+      }
+      if(side === 'SELL' && stopPrice > main.latestPrice)
+      {
+        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "SELL" the "entryPrice" (${stopPrice}) must be less than the latest close price (${main.latestPrice}).`);
+      }
+  }
+} 
