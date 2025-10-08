@@ -355,8 +355,6 @@ export default class BinanceFutures {
         if (!Array.isArray(data[0])) {
           throw new Error('Invalid response in "ohlcv".')
         }
-
-        console.log(data.map(([timestamp]) => new Date(timestamp).toISOString()).at(-1))
       
         const output =  data.map(([timestamp, open, high, low, close, volume]) => ({
           open: parseFloat(open),
