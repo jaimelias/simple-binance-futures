@@ -343,10 +343,6 @@ export default class BinanceFutures {
           pair: contractName,
           ...(limit ? { limit } : { startTime, endTime })
         }
-
-        if(!klineType) {
-          klineType = (this.workingType === 'MARK_PRICE') ? 'markPriceKlines' : 'indexPriceKlines'
-        }
         
         const data = await this.fetch(klineType, 'GET', args)
       

@@ -146,7 +146,7 @@ export const validateOhlcv = ({ interval, limit, startTime, endTime, klineType }
 
   const validKlines = ['klines', 'continuousKlines', 'indexPriceKlines', 'markPriceKlines', 'premiumIndexKlines']
 
-  if(!isNil(klineType) && (typeof klineType !== 'string' || !validKlines.includes(klineType))) {
+  if(typeof klineType !== 'string' || !validKlines.includes(klineType)) {
     throw new Error(`Invalid "klineType". Accepted values are: ${validKlines.join(", ")}.`);
   }
 
