@@ -330,7 +330,7 @@ export default class BinanceFutures {
         return ohlcvObj
       }
 
-      const { interval, startTime, endTime, limit, klineType } = params
+      const { interval, startTime, endTime, limit, klineType = 'klines' } = params
 
       return await this.errorHandler.init(async () => {
         validateOhlcv({ interval, startTime, endTime, limit, klineType })
