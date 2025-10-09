@@ -330,10 +330,10 @@ export default class BinanceFutures {
         return ohlcvObj
       }
 
-      const { interval, startTime, endTime, limit } = params
+      const { interval, startTime, endTime, limit, klineType } = params
 
       return await this.errorHandler.init(async () => {
-        validateOhlcv({ interval, startTime, endTime, limit })
+        validateOhlcv({ interval, startTime, endTime, limit, klineType })
       
         const {contractName} = this
 
@@ -344,8 +344,10 @@ export default class BinanceFutures {
           ...(limit ? { limit } : { startTime, endTime })
         }
 
-        const klineType = (this.workingType === 'MARK_PRICE') ? 'markPriceKlines' : 'indexPriceKlines'
-
+        if(!klineType) {
+          klineType = (this.workingType === 'MARK_PRICE') ? 'markPriceKlines' : 'indexPriceKlines'
+        }
+        
         const data = await this.fetch(klineType, 'GET', args)
       
         if (!Array.isArray(data)) {
@@ -355,16 +357,28 @@ export default class BinanceFutures {
         if (!Array.isArray(data[0])) {
           throw new Error('Invalid response in "ohlcv".')
         }
-      
-        const output =  data.map(([timestamp, open, high, low, close, volume]) => ({
-          open: parseFloat(open),
-          high: parseFloat(high),
-          low: parseFloat(low),
-          close: parseFloat(close),
-          volume: parseFloat(volume),
-          date: millisecondsToDateStr(timestamp)
-        }))
 
+        const volumeLines = ['klines', 'Volume']
+        const includeVol = volumeLines.includes(klineType)
+        const len = data.length
+        const output = new Array(len)
+
+        for (let i = 0; i < len; i++) {
+          const [t, o, h, l, c, v] = data[i]
+          const row = {
+            open:  +o,
+            high:  +h,
+            low:   +l,
+            close: +c,
+            date:  millisecondsToDateStr(t),
+          }
+          
+          if (includeVol) {
+            row.volume = +v
+          }
+
+          output[i] = row;
+        }
 
         this.latestPrice = output[output.length -1].close
 

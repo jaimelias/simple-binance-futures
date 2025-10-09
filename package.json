@@ -1,6 +1,6 @@
 {
   "name": "simple-binance-futures",
-  "version": "1.0.10",
+  "version": "1.0.12",
   "description": "A Javascript connector for Binance Futures. Compatible with Node, Bun, Deno and Google Apps Script.",
   "main": "index.js",
   "type": "module",
