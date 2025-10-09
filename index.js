@@ -316,6 +316,7 @@ export default class BinanceFutures {
       })
     }
 
+  
     async ohlcv(params) {
 
       if(Array.isArray(params))
@@ -354,7 +355,7 @@ export default class BinanceFutures {
           throw new Error('Invalid response in "ohlcv".')
         }
 
-        const volumeLines = ['klines', 'Volume']
+        const volumeLines = ['klines', 'continuousKlines']
         const includeVol = volumeLines.includes(klineType)
         const len = data.length
         const output = new Array(len)
