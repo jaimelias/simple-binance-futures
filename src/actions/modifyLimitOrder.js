@@ -1,18 +1,15 @@
 import { getOrderExpirationParams } from '../utilities/utilities.js'
 import { keyPairObjToString } from '../utilities/ErrorHandler.js';
+import {
+    assertOptionalArray,
+    assertPositiveFiniteNumber,
+    isPlainObject,
+    validateExpirationInMinutes
+} from '../utilities/validators.js'
 
-export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, expirationInMinutes = 10}) => {
-    // Validate that price is a number
-    if (isNaN(entryPrice) || entryPrice <= 0) {
-        throw new Error('"entryPrice" must be a positive number.');
-    }
-
-    if(expirationInMinutes)
-    {
-        if (isNaN(expirationInMinutes) || expirationInMinutes < 10) {
-            throw new Error('"expirationInMinutes" must be a positive number greater than 10.');
-        }
-    }
+export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, expirationInMinutes = 10.1}) => {
+    assertPositiveFiniteNumber(entryPrice, 'entryPrice')
+    validateExpirationInMinutes(expirationInMinutes, 'modifyLimitOrder')
 
     // Validate that side is "SELL" or "BUY"
     if (!['SELL', 'BUY'].includes(side)) {
@@ -20,13 +17,15 @@ export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, ex
     }
 
     // Validate that order is an object with the required properties
-    if (!Array.isArray(orders)) {
-        throw new Error('"orders" must be a valid array.');
-    }
+    assertOptionalArray(orders, 'orders')
 
     if(orders.length === 0)
     {
         orders = await main.getOrders()
+    }
+
+    if(!Array.isArray(orders)) {
+        throw new Error('"orders" returned by Binance must be an array.')
     }
 
     const hasRemainingQuantity = or => {
@@ -48,7 +47,7 @@ export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, ex
 
     const { orderId, origQty, executedQty, price: prevEntryPrice } = order;
 
-    if (!orderId || isNaN(origQty) || isNaN(executedQty)) {
+    if (!Number.isSafeInteger(Number(orderId)) || Number(orderId) <= 0 || !Number.isFinite(Number(origQty)) || !Number.isFinite(Number(executedQty))) {
         throw new Error('"order" must contain valid orderId, origQty, and executedQty properties.');
     }
 
@@ -100,7 +99,7 @@ export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, ex
     }
     
 
-    if(!response.hasOwnProperty('orderId'))
+    if(!isPlainObject(response) || !Object.prototype.hasOwnProperty.call(response, 'orderId'))
     {
         throw new Error(`Error in modifyLimitOrder: ${keyPairObjToString({contractName, ...response, entryPrice, adjustedEntryPrice, side, quantity, tickSize})}`)
     }

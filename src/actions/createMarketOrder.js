@@ -1,5 +1,6 @@
 import { calculateQuantity } from '../utilities/calculateQuantity.js'
 import { keyPairObjToString } from '../utilities/ErrorHandler.js'
+import { assertPositiveFiniteNumber, isPlainObject } from '../utilities/validators.js'
 
 /**
  * Creates a true market order, following the style and patterns of your other helpers
@@ -59,7 +60,7 @@ export const createMarketOrder = async ({
     console.log('createMarketOrder', { payload, response })
   }
 
-  if (!response || !response.hasOwnProperty('orderId')) {
+  if (!isPlainObject(response) || !Object.prototype.hasOwnProperty.call(response, 'orderId')) {
     // Enrich the error with context similar to other helpers
     const ctx = { contractName, leverage, side, amountInUSD, latestPrice, payload, response }
     throw new Error(`Error in createMarketOrder: ${keyPairObjToString(ctx)}`)
@@ -69,16 +70,14 @@ export const createMarketOrder = async ({
 }
 
 const validateCreateMarketOrder = ({ main, side, amountInUSD }) => {
-  if (!main.leverage || typeof main.leverage !== 'number') {
-    throw new Error('Before executing createMarketOrder, execute changeLeverage(leverage, amountInUsd). ')
+  try {
+    assertPositiveFiniteNumber(main.leverage, 'leverage')
+  } catch(error) {
+    throw new Error('Before executing createMarketOrder, execute changeLeverage(leverage, amountInUSD).')
   }
   if (!side || !['BUY', 'SELL'].includes(side)) {
     throw new Error('Invalid or missing property "side" in createMarketOrder.')
   }
-  if (typeof amountInUSD !== 'number' || amountInUSD <= 0) {
-    throw new Error('Missing or invalid "amountInUSD" in createMarketOrder. It must be a positive number.')
-  }
-  if (typeof main.latestPrice !== 'number' || main.latestPrice <= 0) {
-    throw new Error('createMarketOrder requires a valid latestPrice (> 0).')
-  }
+  assertPositiveFiniteNumber(amountInUSD, 'amountInUSD')
+  assertPositiveFiniteNumber(main.latestPrice, 'latestPrice')
 }

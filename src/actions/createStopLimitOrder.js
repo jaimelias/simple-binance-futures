@@ -1,6 +1,12 @@
 import { calculateQuantity } from '../utilities/calculateQuantity.js'
 import { getOrderExpirationParams } from '../utilities/utilities.js'
 import { keyPairObjToString } from '../utilities/ErrorHandler.js'
+import {
+  assertOptionalArray,
+  assertPositiveFiniteNumber,
+  isPlainObject,
+  validateExpirationInMinutes
+} from '../utilities/validators.js'
 
 export const createStopLimitOrder = async ({
     main, 
@@ -8,10 +14,12 @@ export const createStopLimitOrder = async ({
     amountInUSD, 
     stopPrice, 
     limitPrice, 
-    handleExistingOrders, 
-    expirationInMinutes = 10, 
+    handleExistingOrders = 'ADD',
+    expirationInMinutes = 10.1,
     orders
 }) => {
+
+    assertOptionalArray(orders, 'orders')
 
     if(main.latestPrice === 0)
     {
@@ -73,7 +81,7 @@ export const createStopLimitOrder = async ({
         console.log('createStopLimitOrder', {payload, response})
     }
 
-    if(!response.hasOwnProperty('algoId'))
+    if(!isPlainObject(response) || !Object.prototype.hasOwnProperty.call(response, 'algoId'))
     {
         throw new Error(`Error in createStopLimitOrder: ${keyPairObjToString({contractName, leverage, amountInUSD, ...response, stopPrice, limitPrice, side, quantity, tickSize})}`)
     }
@@ -87,6 +95,10 @@ const funcHandleExistingOrders = async ({main, side, stopPrice, limitPrice, hand
     if(!orders)
     {
         orders = await main.getAlgoOrders()
+    }
+
+    if(!Array.isArray(orders)) {
+        throw new Error('"orders" returned by Binance must be an array.')
     }
     
     const existingOrders = orders.filter(o => {
@@ -135,56 +147,35 @@ const funcHandleExistingOrders = async ({main, side, stopPrice, limitPrice, hand
 }
 
 export const validateStopLimitOrder = ({main, side, amountInUSD, stopPrice, limitPrice, handleExistingOrders, expirationInMinutes}) => {
-  
-  if(!main.leverage || typeof main.leverage !== 'number')
-  {
-    throw new Error('Before executing createLimitOrder, execute changeLeverage(leverage, amountInUsd). ');
+
+  try {
+    assertPositiveFiniteNumber(main.leverage, 'leverage')
+  } catch(error) {
+    throw new Error('Before executing createStopLimitOrder, execute changeLeverage(leverage, amountInUSD).')
   }
   
   if(!side || !['BUY', 'SELL'].includes(side))
       {
           throw new Error('Invalid or missing property "side" in validateStopLimitOrder.');
       }
-  if(typeof amountInUSD !== 'number' || amountInUSD <= 0)
-  {
-      throw new Error('Missing or invalid "amountInUSD" in createStopLimitOrder. "amountInUSD" must be a positive number.');
-  }
-
-  if(typeof stopPrice !== 'number' || stopPrice <= 0)
-  {
-      throw new Error('Missing or invalid "stopPrice" in createStopLimitOrder. "stopPrice" must be a positive number.');
-  }
-  if(typeof limitPrice !== 'number' || limitPrice <= 0)
-  {
-      throw new Error('Missing or invalid "limitPrice" in createStopLimitOrder. "limitPrice" must be a positive number.');
-  }
-
-  if(typeof expirationInMinutes !== 'undefined')
-  {
-      if(typeof expirationInMinutes === 'number' && expirationInMinutes >= 10)
-      {
-          //do nothing
-      }
-      else
-      {
-          throw new Error('Invalid "expirationInMinutes" in createStopLimitOrder. "expirationInMinutes" must be a positive number greater than or equal to 10.');
-      }
-  }
+  assertPositiveFiniteNumber(amountInUSD, 'amountInUSD')
+  assertPositiveFiniteNumber(stopPrice, 'stopPrice')
+  assertPositiveFiniteNumber(limitPrice, 'limitPrice')
+  validateExpirationInMinutes(expirationInMinutes, 'createStopLimitOrder')
 
   if(!handleExistingOrders || !['KEEP', 'ERROR', 'REPLACE', 'ADD'].includes(handleExistingOrders))
   {
       throw new Error('Invalid "handleExistingOrders" property in "createStopLimitOrder". Only "KEEP", "ERROR", "REPLACE", and "ADD" strings are supported. Defaults to "ADD".');
   }
 
-  if(main.hasOwnProperty('latestPrice') && main.latestPrice > 0 )
-  {
-      if(side === 'BUY' && stopPrice < main.latestPrice)
+  assertPositiveFiniteNumber(main.latestPrice, 'latestPrice')
+
+  if(side === 'BUY' && stopPrice <= main.latestPrice)
       {
-        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "BUY" the "entryPrice" (${stopPrice}) must be greater than the latest close price (${main.latestPrice}).`);
+        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "BUY" the "stopPrice" (${stopPrice}) must be greater than the latest close price (${main.latestPrice}).`);
       }
-      if(side === 'SELL' && stopPrice > main.latestPrice)
+      if(side === 'SELL' && stopPrice >= main.latestPrice)
       {
-        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "SELL" the "entryPrice" (${stopPrice}) must be less than the latest close price (${main.latestPrice}).`);
+        throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "SELL" the "stopPrice" (${stopPrice}) must be less than the latest close price (${main.latestPrice}).`);
       }
-  }
 }

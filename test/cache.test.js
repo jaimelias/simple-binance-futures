@@ -48,7 +48,12 @@ const createCache = initialValues => {
 const contractInfo = {
   symbol: 'BTCUSDT',
   pricePrecision: 2,
-  filters: [{filterType: 'PRICE_FILTER', tickSize: '0.10'}]
+  quantityPrecision: 3,
+  filters: [
+    {filterType: 'PRICE_FILTER', tickSize: '0.10'},
+    {filterType: 'LOT_SIZE', minQty: '0.001', maxQty: '1000', stepSize: '0.001'},
+    {filterType: 'MIN_NOTIONAL', notional: '5'}
+  ]
 }
 
 const leverageBracket = {

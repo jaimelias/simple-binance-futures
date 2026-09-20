@@ -1,6 +1,7 @@
 export default class ErrorHandler {
     constructor(callbacks = {}) {
-        this.errorLogger = (callbacks.hasOwnProperty('errorLogger') && typeof callbacks.errorLogger === 'function') ? callbacks.errorLogger : null;
+        const hasErrorLogger = Object.prototype.hasOwnProperty.call(callbacks, 'errorLogger')
+        this.errorLogger = (hasErrorLogger && typeof callbacks.errorLogger === 'function') ? callbacks.errorLogger : null;
     }
 
     async init(asyncFn) {

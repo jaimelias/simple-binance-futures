@@ -1,15 +1,23 @@
 
+import { assertOptionalArray } from '../utilities/validators.js'
+
 export const closePosition = async ({main, positions, side}) => {
 
 
     if(!['SELL', 'BUY'].includes(side))
     {
-        throw new Error('Invalid "side" property in closePosition. Only "SELL" or "BUY" buy is accepted.')
+        throw new Error('Invalid "side" property in closePosition. Only "SELL" or "BUY" is accepted.')
     }
+
+    assertOptionalArray(positions, 'positions')
 
     if(!positions)
     {
         positions = await main.getPositions();
+    }
+
+    if(!Array.isArray(positions)) {
+        throw new Error('"positions" returned by Binance must be an array.')
     }
 
     

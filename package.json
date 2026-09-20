@@ -1,6 +1,6 @@
 {
   "name": "simple-binance-futures",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "A Javascript library for Binance Futures. Compatible with NodeJS and Google Apps Script.",
   "main": "index.js",
   "type": "module",

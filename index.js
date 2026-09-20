@@ -1,4 +1,16 @@
-import { validateCredentials, validateEnvironment, validateStrategy, validateOhlcv, validateCallbacks } from './src/utilities/validators.js'
+import {
+  assertNonNegativeFiniteNumber,
+  assertPositiveInteger,
+  isPlainObject,
+  isValidContractInfo,
+  isValidLeverageBracket,
+  normalizeOhlcvTime,
+  validateCallbacks,
+  validateCredentials,
+  validateEnvironment,
+  validateOhlcv,
+  validateStrategy
+} from './src/utilities/validators.js'
 import {getEngine, universalFetch} from './src/utilities/universalFetch.js'
 import { createLimitOrder } from './src/actions/createLimitOrder.js'
 import { createStopLimitOrder } from './src/actions/createStopLimitOrder.js'
@@ -421,7 +433,7 @@ export default class BinanceFutures {
     async getExchangeInfo() {
       return this.errorHandler.init(async () => {
     
-        if(typeof this.exchangeInfo !== 'object' || !this.exchangeInfo.hasOwnProperty('symbols'))
+        if(!isPlainObject(this.exchangeInfo) || !Array.isArray(this.exchangeInfo.symbols))
         {
           this.exchangeInfo = await this.fetch(`exchangeInfo`, 'GET', { })
           return this.exchangeInfo
@@ -436,12 +448,12 @@ export default class BinanceFutures {
       return this.errorHandler.init(async () => {
         const {contractName} = this
     
-        if(this.contractInfo.hasOwnProperty('symbol')) return this.contractInfo
+        if(isValidContractInfo(this.contractInfo, contractName)) return this.contractInfo
 
         const cacheKey = this._getCacheKey('contract-info')
         const cachedContractInfo = this._getCachedObject(
           cacheKey,
-          value => value.symbol === contractName && Array.isArray(value.filters)
+          value => isValidContractInfo(value, contractName)
         )
 
         if(cachedContractInfo)
@@ -454,9 +466,9 @@ export default class BinanceFutures {
     
         const findContract = exchangeInfo.symbols.find(o => o.symbol === contractName)
     
-        if(typeof findContract === 'undefined')
+        if(!isValidContractInfo(findContract, contractName))
         {
-          throw new Error(`contract ${contractName} not fund`)
+          throw new Error(`Valid contract information was not found for ${contractName}.`)
         }
     
         this.contractInfo = findContract
@@ -490,6 +502,15 @@ export default class BinanceFutures {
     async cancelMultipleOrders(orders)
     {
       return this.errorHandler.init(async () => {
+        if(!Array.isArray(orders) || orders.length === 0) {
+          throw new Error('"orders" must be a non-empty array in cancelMultipleOrders.')
+        }
+
+        orders.forEach(order => {
+          if(!isPlainObject(order)) throw new Error('Each order in cancelMultipleOrders must be an object.')
+          assertPositiveInteger(order.orderId, 'orderId')
+        })
+
         const orderIdList = JSON.stringify(orders.map(o => o.orderId))
         return await this.fetch('batchOrders', 'DELETE', {orderIdList})
       })
@@ -499,7 +520,9 @@ export default class BinanceFutures {
     async cancelOrder(payload)
     {
       return this.errorHandler.init(async () => {
+        if(!isPlainObject(payload)) throw new Error('"payload" must be an object in cancelOrder.')
         const {orderId} = payload
+        assertPositiveInteger(orderId, 'orderId')
         return await this.fetch('order', 'DELETE', {orderId})
       })
 
@@ -508,11 +531,9 @@ export default class BinanceFutures {
     async cancelAlgoOrder(payload)
     {
       return this.errorHandler.init(async () => {
+        if(!isPlainObject(payload)) throw new Error('"payload" must be an object in cancelAlgoOrder.')
         const {algoId} = payload
-
-        if(!algoId) {
-          throw new Error('Missing "algoId" in cancelAlgoOrder.')
-        }
+        assertPositiveInteger(algoId, 'algoId')
 
         return await this.fetch('algoOrder', 'DELETE', {algoId})
       })
@@ -607,6 +628,20 @@ export default class BinanceFutures {
       if(Array.isArray(params))
       {
         const ohlcvObj = {}
+        const intervals = new Set()
+
+        for(const obj of params)
+        {
+          if(typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+            throw new Error('Each "ohlcv" batch item must be an object.')
+          }
+
+          if(intervals.has(obj.interval)) {
+            throw new Error(`Duplicate "interval" (${obj.interval}) in "ohlcv" batch request.`)
+          }
+
+          intervals.add(obj.interval)
+        }
 
         for(const obj of params)
         {
@@ -614,6 +649,10 @@ export default class BinanceFutures {
         }
 
         return ohlcvObj
+      }
+
+      if(typeof params !== 'object' || params === null) {
+        throw new Error('"ohlcv" params must be an object or an array of objects.')
       }
 
       const {
@@ -631,13 +670,11 @@ export default class BinanceFutures {
         const {contractName} = this
 
         // Build query args
-        const args = {
-          interval,
-          ...(limit ? { limit } : {
-            startTime: new Date(startTime).getTime(),
-            endTime: new Date(endTime).getTime()
-          })
-        }
+        const args = { interval }
+
+        if(limit != null) args.limit = limit
+        if(startTime != null) args.startTime = normalizeOhlcvTime(startTime, 'startTime')
+        if(endTime != null) args.endTime = normalizeOhlcvTime(endTime, 'endTime')
 
         if(['continuousKlines', 'indexPriceKlines'].includes(klineType)) {
           args.pair = contractName
@@ -653,7 +690,11 @@ export default class BinanceFutures {
           throw new Error('Invalid response in "ohlcv".')
         }
 
-        if (!Array.isArray(data[0])) {
+        if (data.length === 0) {
+          return []
+        }
+
+        if (!data.every(Array.isArray)) {
           throw new Error('Invalid response in "ohlcv".')
         }
 
@@ -679,7 +720,13 @@ export default class BinanceFutures {
           output[i] = row;
         }
 
-        this.latestPrice = output[output.length -1].close
+        const isRecentPriceRequest = startTime == null &&
+          endTime == null &&
+          klineType !== 'premiumIndexKlines'
+
+        if(isRecentPriceRequest) {
+          this.latestPrice = output[output.length -1].close
+        }
 
         return output
       })
@@ -713,7 +760,7 @@ export default class BinanceFutures {
     {
       return this.errorHandler.init(async () => {
 
-        if(typeof this.leverageBracket === 'object' && this.leverageBracket.hasOwnProperty('brackets'))
+        if(isValidLeverageBracket(this.leverageBracket, this.contractName))
         {
           return this.leverageBracket
         }
@@ -721,7 +768,7 @@ export default class BinanceFutures {
         const cacheKey = this._getCacheKey('leverage-bracket')
         const cachedLeverageBracket = this._getCachedObject(
           cacheKey,
-          value => value.symbol === this.contractName && Array.isArray(value.brackets) && value.brackets.length > 0
+          value => isValidLeverageBracket(value, this.contractName)
         )
 
         if(cachedLeverageBracket)
@@ -735,9 +782,7 @@ export default class BinanceFutures {
         if (
           !Array.isArray(data) ||
           data.length === 0 ||
-          data[0].symbol !== this.contractName ||
-          !Array.isArray(data[0].brackets) ||
-          data[0].brackets.length === 0
+          !isValidLeverageBracket(data[0], this.contractName)
         ) {
           throw new Error(`Leverage bracket data not available for contractName: ${this.contractName}`);
         }
@@ -753,10 +798,7 @@ export default class BinanceFutures {
     {
       return this.errorHandler.init(async () => {
 
-        if(typeof notional !== 'number' || Number.isNaN(notional))
-        {
-          throw new Error(`Param "notional" must be a number in the settlement currency of the contract.`)
-        }
+        assertNonNegativeFiniteNumber(notional, 'notional')
 
         const leverageBracket = await this.getLeverageBracket()
         const coef = leverageBracket.notionalCoef ?? 1;

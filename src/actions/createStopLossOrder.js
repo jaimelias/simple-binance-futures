@@ -1,4 +1,4 @@
-import { validateReduceOrders } from "../utilities/validators.js"
+import { assertOptionalArray, isPlainObject, validateReduceOrders } from "../utilities/validators.js"
 import { keyPairObjToString } from "../utilities/ErrorHandler.js"
 
 /**
@@ -22,7 +22,8 @@ import { keyPairObjToString } from "../utilities/ErrorHandler.js"
 
 export const createStopLossOrder = async({main, triggerPrice, handleExistingOrders = 'REPLACE', positions, orders}) => {
 
-
+    assertOptionalArray(positions, 'positions')
+    assertOptionalArray(orders, 'orders')
     validateReduceOrders(triggerPrice, handleExistingOrders)
 
     const type = 'STOP_MARKET'
@@ -30,6 +31,10 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
     if(!positions)
     {
       positions = await main.getPositions();
+    }
+
+    if(!Array.isArray(positions)) {
+        throw new Error('"positions" returned by Binance must be an array.')
     }
 
     const position = positions.find(o => o.symbol === main.contractName && parseFloat(o.positionAmt) !== 0);
@@ -80,7 +85,7 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
       console.log('createStopLossOrder', {payload, response})
     }
 
-    if(!response.hasOwnProperty('algoId'))
+    if(!isPlainObject(response) || !Object.prototype.hasOwnProperty.call(response, 'algoId'))
     {
         await main.closePosition({positions, side})
         throw new Error(`Error in createStopLossOrder forced to close position: ${keyPairObjToString({contractName, ...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
@@ -98,6 +103,10 @@ const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type,
   if(!orders)
   {
     orders = await main.getAlgoOrders()
+  }
+
+  if(!Array.isArray(orders)) {
+    throw new Error('"orders" returned by Binance must be an array.')
   }
   const matchingOrders = orders.filter(o => {
     const orderType = o.orderType ?? o.origType ?? o.type

@@ -1,3 +1,91 @@
+const hasOwn = (value, property) => Object.prototype.hasOwnProperty.call(value, property)
+
+export const isPlainObject = value => (
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+)
+
+export const assertPositiveFiniteNumber = (value, propertyName) => {
+  if(typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`"${propertyName}" must be a finite number greater than 0.`)
+  }
+
+  return value
+}
+
+export const assertNonNegativeFiniteNumber = (value, propertyName) => {
+  if(typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error(`"${propertyName}" must be a finite, non-negative number.`)
+  }
+
+  return value
+}
+
+export const assertPositiveInteger = (value, propertyName) => {
+  if(!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`"${propertyName}" must be a positive integer.`)
+  }
+
+  return value
+}
+
+export const assertOptionalArray = (value, propertyName) => {
+  if(value !== undefined && value !== null && !Array.isArray(value)) {
+    throw new Error(`"${propertyName}" must be an array when provided.`)
+  }
+
+  return value
+}
+
+export const validateExpirationInMinutes = (value, context = 'order') => {
+  if(value === undefined) return true
+
+  if(typeof value !== 'number' || !Number.isFinite(value) || value < 10.1) {
+    throw new Error(`Invalid "expirationInMinutes" in ${context}. It must be a finite number greater than or equal to 10.1.`)
+  }
+
+  return true
+}
+
+const isPositiveNumeric = value => Number.isFinite(Number(value)) && Number(value) > 0
+const isNonNegativeNumeric = value => Number.isFinite(Number(value)) && Number(value) >= 0
+
+export const isValidContractInfo = (value, expectedSymbol) => {
+  if(!isPlainObject(value) || typeof value.symbol !== 'string' || value.symbol.length === 0) return false
+  if(expectedSymbol !== undefined && value.symbol !== expectedSymbol) return false
+  if(!Number.isInteger(value.pricePrecision) || value.pricePrecision < 0) return false
+  if(!Number.isInteger(value.quantityPrecision) || value.quantityPrecision < 0) return false
+  if(!Array.isArray(value.filters)) return false
+
+  const priceFilter = value.filters.find(filter => filter?.filterType === 'PRICE_FILTER')
+  const lotSizeFilter = value.filters.find(filter => filter?.filterType === 'LOT_SIZE')
+  const minNotionalFilter = value.filters.find(filter => filter?.filterType === 'MIN_NOTIONAL')
+
+  return isPositiveNumeric(priceFilter?.tickSize) &&
+    isPositiveNumeric(lotSizeFilter?.minQty) &&
+    isPositiveNumeric(lotSizeFilter?.maxQty) &&
+    Number(lotSizeFilter?.maxQty) >= Number(lotSizeFilter?.minQty) &&
+    isPositiveNumeric(lotSizeFilter?.stepSize) &&
+    isPositiveNumeric(minNotionalFilter?.notional)
+}
+
+export const isValidLeverageBracket = (value, expectedSymbol) => {
+  if(!isPlainObject(value) || !Array.isArray(value.brackets) || value.brackets.length === 0) return false
+  if(expectedSymbol !== undefined && value.symbol !== expectedSymbol) return false
+  if(value.notionalCoef !== undefined && !isPositiveNumeric(value.notionalCoef)) return false
+
+  return value.brackets.every((bracket, index) => {
+    const previousBracket = value.brackets[index - 1]
+
+    return isPlainObject(bracket) &&
+      isNonNegativeNumeric(bracket.notionalFloor) &&
+      isPositiveNumeric(bracket.notionalCap) &&
+      Number(bracket.notionalCap) > Number(bracket.notionalFloor) &&
+      (index === 0 || Number(bracket.notionalFloor) >= Number(previousBracket.notionalCap)) &&
+      Number.isInteger(Number(bracket.initialLeverage)) &&
+      Number(bracket.initialLeverage) > 0
+  })
+}
+
 export const validateEnvironment = (environment) => {
     if (!['testnet', 'production'].includes(environment)) {
       throw new Error('Invalid environment. Allowed values are "testnet" and "production".')
@@ -5,29 +93,33 @@ export const validateEnvironment = (environment) => {
   }
   
 export const validateCredentials = (credentials, environment) => {
-    if (typeof credentials !== 'object' || credentials === null) {
+    if (!isPlainObject(credentials)) {
         throw new Error('Invalid type: "credentials" must be a non-null object.')
     }
 
-    if (!credentials.hasOwnProperty(environment)) {
+    if (!hasOwn(credentials, environment)) {
         throw new Error(`Missing credentials for environment: "${environment}".`)
     }
 
-    const envCredentials = credentials[environment];
-    if (!envCredentials.hasOwnProperty('API_KEY')) {
-        throw new Error(`Missing "API_KEY" in credentials for environment "${environment}".`)
+    const envCredentials = credentials[environment]
+    if (!isPlainObject(envCredentials)) {
+        throw new Error(`Invalid credentials for environment: "${environment}".`)
     }
 
-    if (!envCredentials.hasOwnProperty('API_SECRET')) {
-        throw new Error(`Missing "API_SECRET" in credentials for environment "${environment}".`)
+    if (!hasOwn(envCredentials, 'API_KEY') || typeof envCredentials.API_KEY !== 'string' || envCredentials.API_KEY.trim() === '') {
+        throw new Error(`Missing or invalid "API_KEY" in credentials for environment "${environment}".`)
+    }
+
+    if (!hasOwn(envCredentials, 'API_SECRET') || typeof envCredentials.API_SECRET !== 'string' || envCredentials.API_SECRET.trim() === '') {
+        throw new Error(`Missing or invalid "API_SECRET" in credentials for environment "${environment}".`)
     }
 }
   
 export const validateStrategy = (strategy) => {
-    if (typeof strategy !== 'object' || strategy === null) {
+    if (!isPlainObject(strategy)) {
       throw new Error('Invalid type: "strategy" must be a non-null object.')
     }
-    if (!strategy.hasOwnProperty('environment')) {
+    if (!hasOwn(strategy, 'environment')) {
       throw new Error('Missing "environment" property in strategy object.')
     }
     if(!['testnet', 'production'].includes(strategy.environment))
@@ -35,17 +127,17 @@ export const validateStrategy = (strategy) => {
       throw new Error('Invalid "environment" property. Only "testnet" and "production" are accepted.')
     }
   
-    if (!strategy.symbol) {
+    if (typeof strategy.symbol !== 'string' || !/^[A-Z0-9]+$/.test(strategy.symbol)) {
       throw new Error('Invalid "symbol" property in strategy object.')
     }
 
-    if(!strategy.settlementCurrency)
+    if(typeof strategy.settlementCurrency !== 'string' || !/^[A-Z0-9]+$/.test(strategy.settlementCurrency))
     {
-      throw new Error('Invalid "symbol" property in strategy object.')
+      throw new Error('Invalid "settlementCurrency" property in strategy object.')
     }
 
   
-    if(strategy.hasOwnProperty('marginType'))
+    if(hasOwn(strategy, 'marginType'))
     {
       if(typeof strategy.marginType !== 'string' || !['ISOLATED', 'CROSSED'].includes(strategy.marginType))
       {
@@ -53,7 +145,7 @@ export const validateStrategy = (strategy) => {
       }
     }
   
-    if(strategy.hasOwnProperty('useServerTime'))
+    if(hasOwn(strategy, 'useServerTime'))
     {
       if(typeof strategy.useServerTime !== 'boolean')
       {
@@ -61,7 +153,7 @@ export const validateStrategy = (strategy) => {
       }
     }
   
-    if(strategy.hasOwnProperty('debug'))
+    if(hasOwn(strategy, 'debug'))
     {
       if(typeof strategy.debug !== 'boolean')
       {
@@ -69,7 +161,7 @@ export const validateStrategy = (strategy) => {
       }
     }
 
-    if(strategy.hasOwnProperty('useMarkPrice'))
+    if(hasOwn(strategy, 'useMarkPrice'))
     {
       if(typeof strategy.useMarkPrice !== 'boolean')
       {
@@ -77,31 +169,30 @@ export const validateStrategy = (strategy) => {
       }
     }
 
-    if(strategy.hasOwnProperty('leverageBracket'))
+    const expectedContractName = `${strategy.symbol}${strategy.settlementCurrency}`
+
+    if(hasOwn(strategy, 'leverageBracket'))
     {
-      if(typeof strategy.leverageBracket !== 'object' || !strategy.leverageBracket.hasOwnProperty('brackets'))
+      if(!isValidLeverageBracket(strategy.leverageBracket, expectedContractName))
       {
-        throw new Error('Invalid "leverageBracket" property in strategy object. Only objects with the property "brackets" are accepted.')
+        throw new Error('Invalid "leverageBracket" property in strategy object.')
       }
     }
 
-    if(strategy.hasOwnProperty('contractInfo'))
+    if(hasOwn(strategy, 'contractInfo'))
     {
-      if(typeof strategy.contractInfo !== 'object' || !strategy.contractInfo.hasOwnProperty('symbol'))
+      if(!isValidContractInfo(strategy.contractInfo, expectedContractName))
       {
-        throw new Error('Invalid "contractInfo" property in strategy object. Only objects with the property "symbol" are accepted.')
+        throw new Error('Invalid "contractInfo" property in strategy object.')
       }
     }
 
-    if(strategy.hasOwnProperty('balance'))
+    if(hasOwn(strategy, 'balance'))
     {
-      if(typeof strategy.balance !== 'number')
-      {
-        throw new Error('Invalid "balance" property in strategy object. Only numbers are accepted.')
-      }
+      assertNonNegativeFiniteNumber(strategy.balance, 'balance')
     }
 
-    if(strategy.hasOwnProperty('rateLimitCoolDownSeconds'))
+    if(hasOwn(strategy, 'rateLimitCoolDownSeconds'))
     {
       if(
         !Number.isInteger(strategy.rateLimitCoolDownSeconds) ||
@@ -112,27 +203,27 @@ export const validateStrategy = (strategy) => {
       }
     }
 
-    if(strategy.hasOwnProperty('fundingFeePolicy'))
+    if(hasOwn(strategy, 'fundingFeePolicy'))
     {
       const policy = strategy.fundingFeePolicy
 
-      if(typeof policy !== 'object' || policy === null || Array.isArray(policy))
+      if(!isPlainObject(policy))
       {
         throw new Error('Invalid "fundingFeePolicy" property in strategy object. It must be an object.')
       }
 
-      if(policy.hasOwnProperty('enabled') && typeof policy.enabled !== 'boolean')
+      if(hasOwn(policy, 'enabled') && typeof policy.enabled !== 'boolean')
       {
         throw new Error('Invalid "fundingFeePolicy.enabled". It must be a boolean.')
       }
 
-      if(policy.hasOwnProperty('expectedIntervalHours') && (!Number.isInteger(policy.expectedIntervalHours) || policy.expectedIntervalHours <= 0))
+      if(hasOwn(policy, 'expectedIntervalHours') && (!Number.isInteger(policy.expectedIntervalHours) || policy.expectedIntervalHours <= 0))
       {
         throw new Error('Invalid "fundingFeePolicy.expectedIntervalHours". It must be a positive integer.')
       }
 
       const validateRate = (property, {allowNull = false} = {}) => {
-        if(!policy.hasOwnProperty(property)) return
+        if(!hasOwn(policy, property)) return
         const value = policy[property]
 
         if(allowNull && value === null) return
@@ -143,15 +234,17 @@ export const validateStrategy = (strategy) => {
         }
       }
 
-      validateRate('maxFundingRatePerHour')
+      const fundingPolicyEnabled = policy.enabled ?? false
+
+      validateRate('maxFundingRatePerHour', {allowNull: !fundingPolicyEnabled})
       validateRate('maxFundingRatePerSettlement', {allowNull: true})
 
-      if((policy.enabled ?? false) && !policy.hasOwnProperty('maxFundingRatePerHour'))
+      if(fundingPolicyEnabled && !hasOwn(policy, 'maxFundingRatePerHour'))
       {
         throw new Error('Missing "fundingFeePolicy.maxFundingRatePerHour" for an enabled funding fee policy.')
       }
 
-      if(policy.hasOwnProperty('entryBlackoutMinutes') && (
+      if(hasOwn(policy, 'entryBlackoutMinutes') && (
         typeof policy.entryBlackoutMinutes !== 'number' ||
         !Number.isFinite(policy.entryBlackoutMinutes) ||
         policy.entryBlackoutMinutes < 0
@@ -160,7 +253,7 @@ export const validateStrategy = (strategy) => {
         throw new Error('Invalid "fundingFeePolicy.entryBlackoutMinutes". It must be a finite, non-negative number.')
       }
 
-      if(policy.hasOwnProperty('postFundingBufferSeconds') && (
+      if(hasOwn(policy, 'postFundingBufferSeconds') && (
         typeof policy.postFundingBufferSeconds !== 'number' ||
         !Number.isFinite(policy.postFundingBufferSeconds) ||
         policy.postFundingBufferSeconds < 0
@@ -169,12 +262,12 @@ export const validateStrategy = (strategy) => {
         throw new Error('Invalid "fundingFeePolicy.postFundingBufferSeconds". It must be a finite, non-negative number.')
       }
 
-      if(policy.hasOwnProperty('pendingOrderAction') && !['IGNORE', 'ALERT', 'CANCEL'].includes(policy.pendingOrderAction))
+      if(hasOwn(policy, 'pendingOrderAction') && !['IGNORE', 'ALERT', 'CANCEL'].includes(policy.pendingOrderAction))
       {
         throw new Error('Invalid "fundingFeePolicy.pendingOrderAction". Only "IGNORE", "ALERT", and "CANCEL" are accepted.')
       }
 
-      if(policy.hasOwnProperty('openPositionAction') && !['IGNORE', 'ALERT', 'CLOSE'].includes(policy.openPositionAction))
+      if(hasOwn(policy, 'openPositionAction') && !['IGNORE', 'ALERT', 'CLOSE'].includes(policy.openPositionAction))
       {
         throw new Error('Invalid "fundingFeePolicy.openPositionAction". Only "IGNORE", "ALERT", and "CLOSE" are accepted.')
       }
@@ -185,21 +278,42 @@ export const validateStrategy = (strategy) => {
 
 export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
 
-
-  if(typeof triggerPrice === 'number' && Number.isFinite(triggerPrice) && triggerPrice > 0)
-  {
-      //do nothing
-  }
-  else
-  {
-      throw new Error('Invalid "triggerPrice" property in createStopLossOrder or createTakeProfitOrder. "triggerPrice" must be a positive number greater than 0.')
-  }
+  assertPositiveFiniteNumber(triggerPrice, 'triggerPrice')
 
   if(!handleExistingOrders || !['KEEP', 'ERROR', 'REPLACE'].includes(handleExistingOrders))
   {
     throw new Error('Invalid "handleExistingOrders" property in createStopLossOrder or createTakeProfitOrder. Only "KEEP", "ERROR", and "REPLACE" values are accepted.')
   }
 
+}
+
+const MIN_BINANCE_TIMESTAMP_MS = 1000000000000
+
+export const normalizeOhlcvTime = (value, propertyName) => {
+  let timestamp
+
+  if (value instanceof Date) {
+    timestamp = value.getTime()
+  } else if (typeof value === 'number') {
+    timestamp = value
+  } else if (typeof value === 'string') {
+    const normalizedValue = value.trim()
+    const hasExplicitTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalizedValue)
+
+    if (!hasExplicitTimezone) {
+      throw new Error(`"${propertyName}" must include an explicit timezone, such as "Z" or "-05:00".`)
+    }
+
+    timestamp = Date.parse(normalizedValue)
+  } else {
+    timestamp = NaN
+  }
+
+  if (!Number.isSafeInteger(timestamp) || timestamp < MIN_BINANCE_TIMESTAMP_MS) {
+    throw new Error(`"${propertyName}" must be a valid epoch timestamp in milliseconds, a Date, or an ISO string with an explicit timezone.`)
+  }
+
+  return timestamp
 }
 
 export const validateOhlcv = ({ interval, limit, startTime, endTime, klineType, contractType }) => {
@@ -209,14 +323,7 @@ export const validateOhlcv = ({ interval, limit, startTime, endTime, klineType, 
     "12h","1d","3d","1w","1M"
   ];
 
-  // helpers
-  const isNil = v => v == null; // null or undefined
-  const toDate = (v) => {
-    if (v instanceof Date) return new Date(v.getTime());
-    if (typeof v === "number") return new Date(v);          // ms since epoch
-    if (typeof v === "string")  return new Date(v);          // ISO or parseable
-    return new Date(NaN);
-  };
+  const isNil = v => v == null
 
   // interval
   if (isNil(interval) || !validIntervals.includes(interval)) {
@@ -239,61 +346,51 @@ export const validateOhlcv = ({ interval, limit, startTime, endTime, klineType, 
   const hasStart = !isNil(startTime);
   const hasEnd   = !isNil(endTime);
 
-  // exclusive config: (interval+limit) XOR (interval+startTime+endTime)
-  if (hasLimit && (hasStart || hasEnd)) {
-    throw new Error('"ohlcv" does not accept "limit" together with "startTime" or "endTime".');
-  }
-
-  if (!hasLimit && !(hasStart && hasEnd)) {
-    throw new Error('"ohlcv" requires either "limit" or both "startTime" and "endTime".');
-  }
-
-  // limit (only if provided)
   if (hasLimit) {
-    if (typeof limit !== "number" || !Number.isFinite(limit) || limit < 1 || limit > 1500) {
-      throw new Error('"limit" must be a finite number between 1 and 1500 (inclusive).');
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1500) {
+      throw new Error('"limit" must be an integer between 1 and 1500 (inclusive).');
     }
-    return true; // valid: interval+limit
   }
 
-  // start/end (only when limit not provided)
-  const s = toDate(startTime);
-  const e = toDate(endTime);
+  const normalizedStartTime = hasStart ? normalizeOhlcvTime(startTime, 'startTime') : null
+  const normalizedEndTime = hasEnd ? normalizeOhlcvTime(endTime, 'endTime') : null
 
-  if (Number.isNaN(s.getTime())) throw new Error('"startTime" is not a valid date/time.');
-  if (Number.isNaN(e.getTime())) throw new Error('"endTime" is not a valid date/time.');
-  if (s.getTime() >= e.getTime()) {
-    throw new Error('"startTime" must be earlier than "endTime".');
+  if (hasStart && hasEnd && normalizedStartTime >= normalizedEndTime) {
+    throw new Error('"startTime" must be earlier than "endTime".')
   }
 
-  return true; // valid: interval+startTime+endTime
+  return true
 };
 
 
 export const validateCallbacks = (callbacks = {}, engine) => {
-  if (typeof callbacks !== 'object') {
+  if (!isPlainObject(callbacks)) {
     throw new Error(`Invalid type: "callbacks" property must be an object.`);
   }
 
-  if (callbacks.hasOwnProperty('errorLogger') && typeof callbacks.errorLogger !== 'function') {
+  if (hasOwn(callbacks, 'errorLogger') && typeof callbacks.errorLogger !== 'function') {
     throw new Error(`Invalid type: "callbacks.errorLogger" must be a callback function.`);
   }
 
-  if (callbacks.hasOwnProperty('fundingRiskAlert') && typeof callbacks.fundingRiskAlert !== 'function') {
+  if (hasOwn(callbacks, 'fundingRiskAlert') && typeof callbacks.fundingRiskAlert !== 'function') {
     throw new Error(`Invalid type: "callbacks.fundingRiskAlert" must be a callback function.`);
   }
 
   if (engine !== 'google-apps-script') {
-    if (callbacks.hasOwnProperty('fetch')) {
-      if (typeof callbacks.fetch !== 'function' && typeof callbacks.fetch !== 'object') {
+    if (hasOwn(callbacks, 'fetch')) {
+      if (typeof callbacks.fetch !== 'function') {
         throw new Error(`Invalid type: "callbacks.fetch" must be a standard Fetch API callback.`);
       }
     } else {
       throw new Error(`The current engine "${engine}" requires "fetch" to be provided as a parameter in callbacks.`);
     }
 
-    if (callbacks.hasOwnProperty('crypto')) {
-      if (typeof callbacks.crypto !== 'function' && typeof callbacks.crypto !== 'object') {
+    if (hasOwn(callbacks, 'crypto')) {
+      const crypto = callbacks.crypto
+      const supportsNodeCrypto = typeof crypto?.createHmac === 'function'
+      const supportsWebCrypto = typeof (crypto?.subtle ?? crypto?.webcrypto?.subtle)?.sign === 'function'
+
+      if (!supportsNodeCrypto && !supportsWebCrypto) {
         throw new Error(`Invalid type: "callbacks.crypto" must be a standard Web Crypto API callback. Use globalThis.crypto or require('node:crypto').webcrypto or import crypto from 'node:crypto' to access this module.`);
       }
     } else {
