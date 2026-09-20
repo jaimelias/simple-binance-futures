@@ -13,7 +13,7 @@ export default class ErrorHandler {
                 await this.errorLogger(err.message)
             }
         
-            throw new Error(err.message)
+            throw err
         }
     }
 }

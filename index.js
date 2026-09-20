@@ -6,24 +6,42 @@ import { createTakeProfitOrder } from './src/actions/createTakeProfitOrder.js'
 import { createStopLossOrder } from './src/actions/createStopLossOrder.js'
 import { millisecondsToDateStr } from './src/utilities/utilities.js'
 import { closePosition } from './src/actions/closePosition.js'
+import { createMarketOrder } from './src/actions/createMarketOrder.js'
 import { modifyLimitOrder } from './src/actions/modifyLimitOrder.js'
 import ErrorHandler from './src/utilities/ErrorHandler.js'
+import RateLimitError from './src/utilities/RateLimitError.js'
+import {
+  assertFundingEntryAllowed,
+  checkFundingRisk,
+  evaluateFundingRisk,
+  getFundingState,
+  normalizeFundingFeePolicy
+} from './src/utilities/fundingFees.js'
+
+export { RateLimitError }
 
 export const defaultEndpoints = {
     testnet: 'https://testnet.binancefuture.com',
     production: 'https://fapi.binance.com'
 }
 
+const CONTRACT_INFO_CACHE_TTL_SECONDS = 21600
+const LEVERAGE_BRACKET_CACHE_TTL_SECONDS = 600
+const RATE_LIMIT_CACHE_TTL_SECONDS = 21600
+
 export default class BinanceFutures {
 
     constructor(credentials, strategy, callbacks) {
 
       this.engine = getEngine()
+
+      this.isGAS = this.engine === 'google-apps-script';
+
       validateCallbacks(callbacks, this.engine)
       validateStrategy(strategy)
 
 
-      this.callbacks = callbacks
+      this.callbacks = callbacks ?? {}
 
       this.errorHandler = new ErrorHandler(this.callbacks)
   
@@ -38,7 +56,9 @@ export default class BinanceFutures {
         leverageBracket = {},
         exchangeInfo = {},
         contractInfo = {},
-        balance = 0
+        balance = 0,
+        fundingFeePolicy = {},
+        rateLimitCoolDownSeconds = 60
       } = strategy
   
       validateEnvironment(environment)
@@ -58,7 +78,7 @@ export default class BinanceFutures {
       this.useServerTime = useServerTime
       this.environment = environment
       this.debug = debug
-      
+
       this.workingType = (useMarkPrice) ? 'MARK_PRICE' : 'CONTRACT_PRICE'
       this.exchangeInfo = exchangeInfo
       this.leverageBracket = leverageBracket
@@ -66,6 +86,201 @@ export default class BinanceFutures {
       this.balance = balance
       this.leverage = null
       this.latestPrice = 0
+      this.fundingFeePolicy = normalizeFundingFeePolicy(fundingFeePolicy)
+      this.cache = this.isGAS ? CacheService.getScriptCache() : null;
+      this.rateLimitCoolDownSeconds = rateLimitCoolDownSeconds
+      this.rateLimitLockedUntil = 0
+      this.rateLimitUsage = {}
+      this.PropertiesService = this.isGAS ? PropertiesService.getScriptProperties() : null;
+      this.rateLimitStateKey = `simple-binance-futures:v1:${this.environment}:rate-limit-until`
+
+      //this ensures Google Apps Script time helpers are aligned with Binance Servers.
+      if(this.isGAS) {
+
+        const timeZone = Session.getScriptTimeZone();
+
+        if( timeZone !== 'Etc/UTC')         {
+            throw new Error(`Timezone "${timeZone}" is invalid. Open ⚙️ (Project Settings) and set the timezone to "(GMT+00:00) universal coordinated time".`)
+        }
+      }
+
+
+    }
+
+    _getCacheKey(type) {
+      return `simple-binance-futures:v1:${this.environment}:${this.contractName}:${type}`
+    }
+
+    _removeCachedValue(cacheKey) {
+      if(!this.cache) return
+
+      try {
+        this.cache.remove(cacheKey)
+      } catch(error) {
+        if(this.debug) console.log(`Unable to remove cache key "${cacheKey}": ${error.message}`)
+      }
+    }
+
+    _getCachedObject(cacheKey, isValid) {
+      if(!this.cache) return null
+
+      try {
+        const serializedValue = this.cache.get(cacheKey)
+        if(serializedValue === null) return null
+
+        const value = JSON.parse(serializedValue)
+        if(typeof value !== 'object' || value === null || !isValid(value))
+        {
+          this._removeCachedValue(cacheKey)
+          return null
+        }
+
+        return value
+      } catch(error) {
+        this._removeCachedValue(cacheKey)
+        if(this.debug) console.log(`Unable to read cache key "${cacheKey}": ${error.message}`)
+        return null
+      }
+    }
+
+    _setCachedObject(cacheKey, value, expirationInSeconds) {
+      if(!this.cache) return
+
+      try {
+        this.cache.put(cacheKey, JSON.stringify(value), expirationInSeconds)
+      } catch(error) {
+        if(this.debug) console.log(`Unable to write cache key "${cacheKey}": ${error.message}`)
+      }
+    }
+
+    _cacheRateLimitLockedUntil(lockedUntil) {
+      if(!this.cache) return
+
+      const remainingSeconds = Math.ceil((lockedUntil - Date.now()) / 1000)
+
+      try {
+        if(remainingSeconds <= 0)
+        {
+          this.cache.remove(this.rateLimitStateKey)
+          return
+        }
+
+        this.cache.put(
+          this.rateLimitStateKey,
+          String(lockedUntil),
+          Math.min(remainingSeconds, RATE_LIMIT_CACHE_TTL_SECONDS)
+        )
+      } catch(error) {
+        if(this.debug) console.log(`Unable to cache rate-limit state: ${error.message}`)
+      }
+    }
+
+    _getSharedRateLimitLockedUntil() {
+      let lockedUntil = 0
+
+      if(this.cache)
+      {
+        try {
+          lockedUntil = Number(this.cache.get(this.rateLimitStateKey)) || 0
+          if(lockedUntil > Date.now()) return lockedUntil
+        } catch(error) {
+          if(this.debug) console.log(`Unable to read cached rate-limit state: ${error.message}`)
+        }
+      }
+
+      if(!this.PropertiesService) return 0
+
+      try {
+        lockedUntil = Number(this.PropertiesService.getProperty(this.rateLimitStateKey)) || 0
+
+        if(lockedUntil > Date.now())
+        {
+          this._cacheRateLimitLockedUntil(lockedUntil)
+          return lockedUntil
+        }
+
+        if(lockedUntil > 0) this.PropertiesService.deleteProperty(this.rateLimitStateKey)
+      } catch(error) {
+        if(this.debug) console.log(`Unable to read persisted rate-limit state: ${error.message}`)
+      }
+
+      return 0
+    }
+
+    _persistRateLimitLockedUntil(lockedUntil) {
+      this._cacheRateLimitLockedUntil(lockedUntil)
+      if(!this.PropertiesService) return lockedUntil
+
+      let lock = null
+      let lockAcquired = false
+
+      try {
+        if(typeof LockService !== 'undefined')
+        {
+          lock = LockService.getScriptLock()
+          lockAcquired = lock.tryLock(1000)
+        }
+
+        const persistedValue = Number(this.PropertiesService.getProperty(this.rateLimitStateKey)) || 0
+        const valueToPersist = Math.max(lockedUntil, persistedValue)
+        this.PropertiesService.setProperty(this.rateLimitStateKey, String(valueToPersist))
+        this._cacheRateLimitLockedUntil(valueToPersist)
+        return valueToPersist
+      } catch(error) {
+        if(this.debug) console.log(`Unable to persist rate-limit state: ${error.message}`)
+        return lockedUntil
+      } finally {
+        if(lock && lockAcquired) lock.releaseLock()
+      }
+    }
+
+    lockRateLimit({status, retryAfterSeconds}) {
+      const hasRetryAfter = typeof retryAfterSeconds === 'number' &&
+        Number.isFinite(retryAfterSeconds) &&
+        retryAfterSeconds >= 0
+      const requestedCoolDownSeconds = hasRetryAfter
+        ? Math.max(1, Math.ceil(retryAfterSeconds))
+        : this.rateLimitCoolDownSeconds
+      const now = Date.now()
+      const requestedLockedUntil = now + (requestedCoolDownSeconds * 1000)
+      const existingLockedUntil = Math.max(
+        this.rateLimitLockedUntil,
+        this._getSharedRateLimitLockedUntil()
+      )
+
+      this.rateLimitLockedUntil = Math.max(requestedLockedUntil, existingLockedUntil)
+      this.rateLimitLockedUntil = this._persistRateLimitLockedUntil(this.rateLimitLockedUntil)
+      this.lastRateLimitStatus = status
+
+      return {
+        status,
+        retryAfterSeconds: Math.max(1, Math.ceil((this.rateLimitLockedUntil - now) / 1000)),
+        lockedUntil: this.rateLimitLockedUntil
+      }
+    }
+
+    getRateLimitRemainingSeconds() {
+      const lockedUntil = Math.max(
+        this.rateLimitLockedUntil,
+        this._getSharedRateLimitLockedUntil()
+      )
+      this.rateLimitLockedUntil = lockedUntil
+
+      return Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000))
+    }
+
+    assertRateLimitAvailable() {
+      const remainingSeconds = this.getRateLimitRemainingSeconds()
+      if(remainingSeconds === 0) return true
+
+      throw new RateLimitError({
+        status: this.lastRateLimitStatus ?? 429,
+        retryAfterSeconds: remainingSeconds,
+        lockedUntil: this.rateLimitLockedUntil,
+        rateLimitUsage: this.rateLimitUsage,
+        isLocalCooldown: true,
+        message: `Binance requests are locked for another ${remainingSeconds} seconds due to a previous rate-limit response.`
+      })
     }
   
   
@@ -223,6 +438,18 @@ export default class BinanceFutures {
     
         if(this.contractInfo.hasOwnProperty('symbol')) return this.contractInfo
 
+        const cacheKey = this._getCacheKey('contract-info')
+        const cachedContractInfo = this._getCachedObject(
+          cacheKey,
+          value => value.symbol === contractName && Array.isArray(value.filters)
+        )
+
+        if(cachedContractInfo)
+        {
+          this.contractInfo = cachedContractInfo
+          return this.contractInfo
+        }
+
         const exchangeInfo = await this.getExchangeInfo()
     
         const findContract = exchangeInfo.symbols.find(o => o.symbol === contractName)
@@ -233,6 +460,7 @@ export default class BinanceFutures {
         }
     
         this.contractInfo = findContract
+        this._setCachedObject(cacheKey, this.contractInfo, CONTRACT_INFO_CACHE_TTL_SECONDS)
     
         return findContract;
       })
@@ -315,6 +543,14 @@ export default class BinanceFutures {
 
     }
 
+    async createMarketOrder({side, amountInUSD}) {
+
+      return this.errorHandler.init(async () => {
+        return await createMarketOrder({main: this, side, amountInUSD})
+      })
+
+    }
+
     async createTakeProfitOrder({triggerPrice, handleExistingOrders, positions, orders}) {
 
       return this.errorHandler.init(async () => {
@@ -327,6 +563,30 @@ export default class BinanceFutures {
 
       return this.errorHandler.init(async () => {
         return await createStopLossOrder({main: this, triggerPrice, handleExistingOrders, positions, orders})
+      })
+
+    }
+
+    async getFundingState({side, quantity, positionNotional} = {}) {
+
+      return this.errorHandler.init(async () => {
+        return await getFundingState({main: this, side, quantity, positionNotional})
+      })
+
+    }
+
+    evaluateFundingRisk(state) {
+      return evaluateFundingRisk(state, this.fundingFeePolicy)
+    }
+
+    async assertFundingEntryAllowed({side, quantity, positionNotional}) {
+      return await assertFundingEntryAllowed({main: this, side, quantity, positionNotional})
+    }
+
+    async checkFundingRisk({orders, algoOrders, positions} = {}) {
+
+      return this.errorHandler.init(async () => {
+        return await checkFundingRisk({main: this, orders, algoOrders, positions})
       })
 
     }
@@ -458,13 +718,32 @@ export default class BinanceFutures {
           return this.leverageBracket
         }
 
+        const cacheKey = this._getCacheKey('leverage-bracket')
+        const cachedLeverageBracket = this._getCachedObject(
+          cacheKey,
+          value => value.symbol === this.contractName && Array.isArray(value.brackets) && value.brackets.length > 0
+        )
+
+        if(cachedLeverageBracket)
+        {
+          this.leverageBracket = cachedLeverageBracket
+          return this.leverageBracket
+        }
+
         const data = await this.fetch('leverageBracket', 'GET')
 
-        if (!Array.isArray(data) || data.length === 0 || !Array.isArray(data[0].brackets) || data[0].brackets.length === 0) {
+        if (
+          !Array.isArray(data) ||
+          data.length === 0 ||
+          data[0].symbol !== this.contractName ||
+          !Array.isArray(data[0].brackets) ||
+          data[0].brackets.length === 0
+        ) {
           throw new Error(`Leverage bracket data not available for contractName: ${this.contractName}`);
         }
 
         this.leverageBracket = data[0]; // For single symbol
+        this._setCachedObject(cacheKey, this.leverageBracket, LEVERAGE_BRACKET_CACHE_TTL_SECONDS)
 
         return this.leverageBracket
       })  

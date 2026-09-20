@@ -9,14 +9,17 @@ const publicEndpoints = [
   'continuousKlines',
   'indexPriceKlines',
   'markPriceKlines',
-  'premiumIndexKlines'
+  'premiumIndexKlines',
+  'premiumIndex',
+  'fundingInfo',
+  'fundingRate'
 ]
 
-const endpointsWithoutSymbol = ['time', 'exchangeInfo', 'continuousKlines', 'indexPriceKlines']
+const endpointsWithoutSymbol = ['time', 'exchangeInfo', 'continuousKlines', 'indexPriceKlines', 'fundingInfo']
 
 export const getEngine = () => {
     if (typeof ScriptApp !== 'undefined') {
-      return 'google-app-script'
+      return 'google-apps-script'
     } else if (typeof process !== 'undefined' && process.release?.name === 'node') {
       return 'node'
     } else if (typeof Deno !== 'undefined') {
@@ -32,6 +35,10 @@ export const getEngine = () => {
 }
 
 export const universalFetch = async (main, pathname, method, payload, version) => {
+
+  if(typeof main.assertRateLimitAvailable === 'function') {
+    main.assertRateLimitAvailable()
+  }
 
   const basePayload = { ...payload }
 
@@ -71,6 +78,10 @@ export const universalFetch = async (main, pathname, method, payload, version) =
   let finalUrl
   const options = { method, headers}
 
+  if(main.engine === 'google-apps-script') {
+    options.muteHttpExceptions = true
+  }
+
   if (method === 'GET' || method === 'DELETE') {
     finalUrl = `${baseUrl}?${signedQuery}`
   } 
@@ -78,10 +89,9 @@ export const universalFetch = async (main, pathname, method, payload, version) =
     finalUrl = baseUrl
     headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
-    if(main.engine === 'google-app-script')
+    if(main.engine === 'google-apps-script')
     {
       options.payload = signedQuery
-      options.muteHttpExceptions = true
     }
     else
     {
@@ -89,9 +99,9 @@ export const universalFetch = async (main, pathname, method, payload, version) =
     }
   }
 
-  if(main.engine === 'google-app-script')
+  if(main.engine === 'google-apps-script')
   {
-    return await handleGoogleAppsScriptFetch(finalUrl, options)
+    return await handleGoogleAppsScriptFetch(main, finalUrl, options)
   }
   else
   {

@@ -49,6 +49,10 @@ export const createMarketOrder = async ({
     reduceOnly: false,
   }
 
+  if (typeof main.assertFundingEntryAllowed === 'function') {
+    await main.assertFundingEntryAllowed({side, quantity})
+  }
+
   const response = await main.fetch('order', 'POST', payload)
 
   if (main.debug) {

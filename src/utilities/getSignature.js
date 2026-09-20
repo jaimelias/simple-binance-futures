@@ -5,7 +5,7 @@ export const getSignature = async (main, queryString) => {
     
     const {engine, API_SECRET} = main
     
-    if (engine === 'google-app-script') {
+    if (engine === 'google-apps-script') {
       // Google Apps Script approach
       const signatureBytes = Utilities.computeHmacSha256Signature(queryString, API_SECRET)
       // Convert bytes to hex

@@ -70,6 +70,10 @@ export const  createLimitOrder = async ({main, side = 'BUY', amountInUSD, entryP
         Object.assign(payload, { timeInForce, goodTillDate })
     }
 
+    if(typeof main.assertFundingEntryAllowed === 'function') {
+        await main.assertFundingEntryAllowed({side, quantity})
+    }
+
     const response = await main.fetch('order', 'POST', payload)
 
     if(main.debug)
@@ -189,4 +193,4 @@ export const validateCreateLimitOrder = ({main, side, amountInUSD, entryPrice, h
         }
       }
     }
-} 
+}

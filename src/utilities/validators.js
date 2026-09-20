@@ -101,6 +101,85 @@ export const validateStrategy = (strategy) => {
       }
     }
 
+    if(strategy.hasOwnProperty('rateLimitCoolDownSeconds'))
+    {
+      if(
+        !Number.isInteger(strategy.rateLimitCoolDownSeconds) ||
+        strategy.rateLimitCoolDownSeconds <= 0
+      )
+      {
+        throw new Error('Invalid "rateLimitCoolDownSeconds" property in strategy object. It must be a positive integer.')
+      }
+    }
+
+    if(strategy.hasOwnProperty('fundingFeePolicy'))
+    {
+      const policy = strategy.fundingFeePolicy
+
+      if(typeof policy !== 'object' || policy === null || Array.isArray(policy))
+      {
+        throw new Error('Invalid "fundingFeePolicy" property in strategy object. It must be an object.')
+      }
+
+      if(policy.hasOwnProperty('enabled') && typeof policy.enabled !== 'boolean')
+      {
+        throw new Error('Invalid "fundingFeePolicy.enabled". It must be a boolean.')
+      }
+
+      if(policy.hasOwnProperty('expectedIntervalHours') && (!Number.isInteger(policy.expectedIntervalHours) || policy.expectedIntervalHours <= 0))
+      {
+        throw new Error('Invalid "fundingFeePolicy.expectedIntervalHours". It must be a positive integer.')
+      }
+
+      const validateRate = (property, {allowNull = false} = {}) => {
+        if(!policy.hasOwnProperty(property)) return
+        const value = policy[property]
+
+        if(allowNull && value === null) return
+
+        if(typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+        {
+          throw new Error(`Invalid "fundingFeePolicy.${property}". It must be a finite, non-negative decimal rate${allowNull ? ' or null' : ''}.`)
+        }
+      }
+
+      validateRate('maxFundingRatePerHour')
+      validateRate('maxFundingRatePerSettlement', {allowNull: true})
+
+      if((policy.enabled ?? false) && !policy.hasOwnProperty('maxFundingRatePerHour'))
+      {
+        throw new Error('Missing "fundingFeePolicy.maxFundingRatePerHour" for an enabled funding fee policy.')
+      }
+
+      if(policy.hasOwnProperty('entryBlackoutMinutes') && (
+        typeof policy.entryBlackoutMinutes !== 'number' ||
+        !Number.isFinite(policy.entryBlackoutMinutes) ||
+        policy.entryBlackoutMinutes < 0
+      ))
+      {
+        throw new Error('Invalid "fundingFeePolicy.entryBlackoutMinutes". It must be a finite, non-negative number.')
+      }
+
+      if(policy.hasOwnProperty('postFundingBufferSeconds') && (
+        typeof policy.postFundingBufferSeconds !== 'number' ||
+        !Number.isFinite(policy.postFundingBufferSeconds) ||
+        policy.postFundingBufferSeconds < 0
+      ))
+      {
+        throw new Error('Invalid "fundingFeePolicy.postFundingBufferSeconds". It must be a finite, non-negative number.')
+      }
+
+      if(policy.hasOwnProperty('pendingOrderAction') && !['IGNORE', 'ALERT', 'CANCEL'].includes(policy.pendingOrderAction))
+      {
+        throw new Error('Invalid "fundingFeePolicy.pendingOrderAction". Only "IGNORE", "ALERT", and "CANCEL" are accepted.')
+      }
+
+      if(policy.hasOwnProperty('openPositionAction') && !['IGNORE', 'ALERT', 'CLOSE'].includes(policy.openPositionAction))
+      {
+        throw new Error('Invalid "fundingFeePolicy.openPositionAction". Only "IGNORE", "ALERT", and "CLOSE" are accepted.')
+      }
+    }
+
 }
 
 
@@ -200,7 +279,11 @@ export const validateCallbacks = (callbacks = {}, engine) => {
     throw new Error(`Invalid type: "callbacks.errorLogger" must be a callback function.`);
   }
 
-  if (engine !== 'google-app-script') {
+  if (callbacks.hasOwnProperty('fundingRiskAlert') && typeof callbacks.fundingRiskAlert !== 'function') {
+    throw new Error(`Invalid type: "callbacks.fundingRiskAlert" must be a callback function.`);
+  }
+
+  if (engine !== 'google-apps-script') {
     if (callbacks.hasOwnProperty('fetch')) {
       if (typeof callbacks.fetch !== 'function' && typeof callbacks.fetch !== 'object') {
         throw new Error(`Invalid type: "callbacks.fetch" must be a standard Fetch API callback.`);

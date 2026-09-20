@@ -62,6 +62,10 @@ export const createStopLimitOrder = async ({
         Object.assign(payload, { timeInForce, goodTillDate })
     }
 
+    if(typeof main.assertFundingEntryAllowed === 'function') {
+        await main.assertFundingEntryAllowed({side, quantity})
+    }
+
     const response = await main.fetch('algoOrder', 'POST', payload)
 
     if(main.debug)

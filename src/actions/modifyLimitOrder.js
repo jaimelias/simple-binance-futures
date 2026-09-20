@@ -86,6 +86,10 @@ export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, ex
         Object.assign(payload, { timeInForce, goodTillDate })
     }
 
+    if(typeof main.assertFundingEntryAllowed === 'function') {
+        await main.assertFundingEntryAllowed({side, quantity})
+    }
+
 
     // Send the request to the endpoint
     const response = await main.fetch('order', 'PUT', payload);

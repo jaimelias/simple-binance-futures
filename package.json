@@ -1,12 +1,13 @@
 {
   "name": "simple-binance-futures",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "A Javascript library for Binance Futures. Compatible with NodeJS and Google Apps Script.",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "build": "npx webpack",
-    "test": "node test/test.js"
+    "test": "node test/test.js",
+    "test:unit": "node --test test/*.test.js"
   },
   "author": "jaimelias",
   "license": "ISC",
