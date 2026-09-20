@@ -6,8 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "npx webpack",
-    "new-order": "node test/test-new-order && exit 1",
-    "reduce-order": "node test/test-reduce-order && exit 1"
+    "test": "node test/test.js"
   },
   "author": "jaimelias",
   "license": "ISC",

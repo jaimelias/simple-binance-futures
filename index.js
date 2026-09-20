@@ -6,6 +6,7 @@ import { createTakeProfitOrder } from './src/actions/createTakeProfitOrder.js'
 import { createStopLossOrder } from './src/actions/createStopLossOrder.js'
 import { millisecondsToDateStr } from './src/utilities/utilities.js'
 import { closePosition } from './src/actions/closePosition.js'
+import { createMarketOrder } from './src/actions/createMarketOrder.js'
 import { modifyLimitOrder } from './src/actions/modifyLimitOrder.js'
 import ErrorHandler from './src/utilities/ErrorHandler.js'
 
@@ -19,6 +20,12 @@ export default class BinanceFutures {
     constructor(credentials, strategy, callbacks) {
 
       this.engine = getEngine()
+
+      this.init(credentials, strategy, callbacks)
+
+    }
+
+    init(credentials, strategy, callbacks) {
       validateCallbacks(callbacks, this.engine)
       validateStrategy(strategy)
 
@@ -295,6 +302,14 @@ export default class BinanceFutures {
       
       return this.errorHandler.init(async () => {
         return await createLimitOrder({main: this, side, amountInUSD, entryPrice, handleExistingOrders, expirationInMinutes, orders, ignoreImmediateExecErr})
+      })
+
+    }
+
+    async createMarketOrder({side, amountInUSD}) {
+
+      return this.errorHandler.init(async () => {
+        return await createMarketOrder({main: this, side, amountInUSD})
       })
 
     }
