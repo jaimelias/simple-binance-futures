@@ -4,7 +4,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const entry = './index.js';
 const output = {
-  filename: 'google-appscript-build.js',
+  filename: 'google-apps-script-build.js',
   path: resolve(__dirname, './dist'),
   library: 'BinanceFutures'
 };

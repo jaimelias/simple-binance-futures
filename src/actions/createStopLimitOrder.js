@@ -44,10 +44,11 @@ export const createStopLimitOrder = async ({
 
 
     const payload = {
+        algoType: 'CONDITIONAL',
         side,
         type: 'STOP',
         quantity,
-        stopPrice: adjustedStopPrice,
+        triggerPrice: adjustedStopPrice,
         price: adjustedLimitPrice,
         timeInForce: 'GTC',
         workingType: main.workingType,
@@ -61,14 +62,14 @@ export const createStopLimitOrder = async ({
         Object.assign(payload, { timeInForce, goodTillDate })
     }
 
-    const response = await main.fetch('order', 'POST', payload)
+    const response = await main.fetch('algoOrder', 'POST', payload)
 
     if(main.debug)
     {
         console.log('createStopLimitOrder', {payload, response})
     }
 
-    if(!response.hasOwnProperty('orderId'))
+    if(!response.hasOwnProperty('algoId'))
     {
         throw new Error(`Error in createStopLimitOrder: ${keyPairObjToString({contractName, leverage, amountInUSD, ...response, stopPrice, limitPrice, side, quantity, tickSize})}`)
     }
@@ -81,10 +82,13 @@ const funcHandleExistingOrders = async ({main, side, stopPrice, limitPrice, hand
 
     if(!orders)
     {
-        orders = await main.getOrders()
+        orders = await main.getAlgoOrders()
     }
     
-    const existingOrders = orders.filter(o => o.symbol === main.contractName && o.type === 'STOP' && o.side === side && o.reduceOnly === false && o.priceProtect === false && o.closePosition === false && o.goodTillDate)
+    const existingOrders = orders.filter(o => {
+        const orderType = o.orderType ?? o.origType ?? o.type
+        return o.symbol === main.contractName && orderType === 'STOP' && o.side === side && o.closePosition === false
+    })
 
     if(existingOrders.length > 0)
     {
@@ -106,11 +110,11 @@ const funcHandleExistingOrders = async ({main, side, stopPrice, limitPrice, hand
         else if(handleExistingOrders === 'REPLACE')
         {
 
-            const cancelMultipleOrders = await main.cancelMultipleOrders(existingOrders)
+            const canceledOrders = await Promise.all(existingOrders.map(order => main.cancelAlgoOrder(order)))
 
             if(main.debug)
             {
-                console.log('cancelMultipleOrders', cancelMultipleOrders)
+                console.log('cancelAlgoOrders', canceledOrders)
             }
         }
         //ADD submits new order even if there are existing orders
@@ -179,4 +183,4 @@ export const validateStopLimitOrder = ({main, side, amountInUSD, stopPrice, limi
         throw new Error(`Immediate order execution error. In "createStopLimitOrder" side "SELL" the "entryPrice" (${stopPrice}) must be less than the latest close price (${main.latestPrice}).`);
       }
   }
-} 
+}

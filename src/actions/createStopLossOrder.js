@@ -62,28 +62,25 @@ export const createStopLossOrder = async({main, triggerPrice, handleExistingOrde
 
 
     const payload = {
-        symbol: contractName,
+        algoType: 'CONDITIONAL',
         side: side === 'BUY' ? 'SELL' : 'BUY',
         positionSide: 'BOTH',
         type,
-        timeInForce: 'GTE_GTC',
-        quantity: 0, // Close entire position
-        stopPrice: adjustedStopPrice,
+        triggerPrice: adjustedStopPrice,
         workingType,
         closePosition: true,
-        placeType: 'position',
-        priceProtect: true,
+        priceProtect: true
     }
 
 
-    const response = await main.fetch('order', 'POST', payload)
+    const response = await main.fetch('algoOrder', 'POST', payload)
 
     if(main.debug)
     {
       console.log('createStopLossOrder', {payload, response})
     }
 
-    if(!response.hasOwnProperty('orderId'))
+    if(!response.hasOwnProperty('algoId'))
     {
         await main.closePosition({positions, side})
         throw new Error(`Error in createStopLossOrder forced to close position: ${keyPairObjToString({contractName, ...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
@@ -100,12 +97,15 @@ const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type,
 
   if(!orders)
   {
-    orders = await main.getOrders()
+    orders = await main.getAlgoOrders()
   }
-  const order = orders.find(o => o.origType === type)
+  const matchingOrders = orders.filter(o => {
+    const orderType = o.orderType ?? o.origType ?? o.type
+    return o.symbol === main.contractName && orderType === type && o.closePosition === true
+  })
 
 
-  if(order)
+  if(matchingOrders.length > 0)
   {
 
   if(handleExistingOrders === 'KEEP')
@@ -114,18 +114,21 @@ const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type,
     }
     else if(handleExistingOrders === 'ERROR')
     {
-      throw new Error('New "take profit" order not execute because of an existing "take profit" order.')
+      throw new Error('New stop-loss order not executed because of an existing stop-loss order.')
     }
 
-    const stopPrice = parseFloat(order.stopPrice)
+    const samePriceOrder = matchingOrders.find(order => {
+      const orderTriggerPrice = parseFloat(order.triggerPrice ?? order.stopPrice)
+      return orderTriggerPrice === triggerPrice
+    })
 
-    if(stopPrice === triggerPrice) return true
+    if(samePriceOrder) return true
 
-    const canceledOrder = await main.cancelOrder(order)
+    const canceledOrders = await Promise.all(matchingOrders.map(order => main.cancelAlgoOrder(order)))
 
     if(main.debug)
     {
-      console.log(`createStopLossOrder canceled order`, canceledOrder)
+      console.log(`createStopLossOrder canceled orders`, canceledOrders)
     }
   }
 

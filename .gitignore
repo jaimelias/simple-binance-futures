@@ -1,1 +1,3 @@
 test/test-credentials.js
+node_modules
+.env

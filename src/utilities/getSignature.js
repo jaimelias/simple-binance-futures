@@ -1,5 +1,7 @@
 
-export const getSignature = (main, queryString) => {
+const bytesToHex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+
+export const getSignature = async (main, queryString) => {
     
     const {engine, API_SECRET} = main
     
@@ -17,10 +19,28 @@ export const getSignature = (main, queryString) => {
     }
 
     const {crypto: standardCrypto} = main.callbacks
-  
-    // Otherwise, use crypto from Node / Deno / CF / Bun, etc.
-    // Node’s built-in crypto usage example:
-    const hmac = standardCrypto.createHmac('sha256', API_SECRET)
-    hmac.update(queryString)
-    return hmac.digest('hex')
+
+    if (typeof standardCrypto.createHmac === 'function') {
+      const hmac = standardCrypto.createHmac('sha256', API_SECRET)
+      hmac.update(queryString)
+      return hmac.digest('hex')
+    }
+
+    const subtle = standardCrypto.subtle ?? standardCrypto.webcrypto?.subtle
+
+    if (!subtle) {
+      throw new Error('The provided crypto implementation must expose createHmac or Web Crypto subtle.')
+    }
+
+    const encoder = new TextEncoder()
+    const key = await subtle.importKey(
+      'raw',
+      encoder.encode(API_SECRET),
+      {name: 'HMAC', hash: 'SHA-256'},
+      false,
+      ['sign']
+    )
+    const signature = await subtle.sign('HMAC', key, encoder.encode(queryString))
+
+    return bytesToHex(new Uint8Array(signature))
   }

@@ -43,8 +43,6 @@ export const closePosition = async ({main, positions, side}) => {
         type,
         quantity,
         reduceOnly: true,
-        isolated: main.marginType === 'ISOLATED',
-        placeType: 'position',
         positionSide: 'BOTH'
     }
 

@@ -17,7 +17,7 @@ export const defaultEndpoints = {
 export default class BinanceFutures {
 
     constructor(credentials, strategy, callbacks) {
-  
+
       this.engine = getEngine()
       validateCallbacks(callbacks, this.engine)
       validateStrategy(strategy)
@@ -93,6 +93,13 @@ export default class BinanceFutures {
       })
     }
 
+    async getAlgoOrders() {
+
+      return this.errorHandler.init(async () => {
+        return await this.fetch('openAlgoOrders', 'GET', { algoType: 'CONDITIONAL' });
+      })
+    }
+
     async getParsedOrders(){
 
       const parsedOrders = {
@@ -110,21 +117,26 @@ export default class BinanceFutures {
         }
       }
 
-      const unparsedOrders = await this.getOrders()
+      const [regularOrders, algoOrders] = await Promise.all([
+        this.getOrders(),
+        this.getAlgoOrders()
+      ])
+      const unparsedOrders = [...regularOrders, ...algoOrders]
 
       for(const order of unparsedOrders)
       {
-        const {type, side, reduceOnly, closePosition} = order
+        const type = order.orderType ?? order.origType ?? order.type
+        const {side, reduceOnly, closePosition} = order
 
           if(['MARKET', 'LIMIT', 'STOP'].includes(type) && reduceOnly === false && closePosition === false)
           {
             parsedOrders.orders[side].push(order)
           }
-          else if(type === 'STOP_MARKET' && reduceOnly && closePosition)
+          else if(type === 'STOP_MARKET' && closePosition)
           {
             parsedOrders.sl[side].push(order)
           }
-          else if(type === 'TAKE_PROFIT_MARKET' && reduceOnly && closePosition)
+          else if(type === 'TAKE_PROFIT_MARKET' && closePosition)
           {
             parsedOrders.tp[side].push(order)
           }
@@ -238,9 +250,8 @@ export default class BinanceFutures {
         const maxLeverage = await this.getMaxLevarage(notional)
 
         const leverage = Math.floor(Math.min(leverageParam, maxLeverage))
-        this.leverage = leverage
-
         await this.fetch('leverage', 'POST', {leverage})
+        this.leverage = leverage
 
         return leverage
       })
@@ -262,6 +273,20 @@ export default class BinanceFutures {
       return this.errorHandler.init(async () => {
         const {orderId} = payload
         return await this.fetch('order', 'DELETE', {orderId})
+      })
+
+    }
+
+    async cancelAlgoOrder(payload)
+    {
+      return this.errorHandler.init(async () => {
+        const {algoId} = payload
+
+        if(!algoId) {
+          throw new Error('Missing "algoId" in cancelAlgoOrder.')
+        }
+
+        return await this.fetch('algoOrder', 'DELETE', {algoId})
       })
 
     }
@@ -331,18 +356,35 @@ export default class BinanceFutures {
         return ohlcvObj
       }
 
-      const { interval, startTime, endTime, limit, klineType = 'klines' } = params
+      const {
+        interval,
+        startTime,
+        endTime,
+        limit,
+        klineType = 'klines',
+        contractType = 'PERPETUAL'
+      } = params
 
       return await this.errorHandler.init(async () => {
-        validateOhlcv({ interval, startTime, endTime, limit, klineType })
+        validateOhlcv({ interval, startTime, endTime, limit, klineType, contractType })
       
         const {contractName} = this
 
         // Build query args
         const args = {
           interval,
-          pair: contractName,
-          ...(limit ? { limit } : { startTime, endTime })
+          ...(limit ? { limit } : {
+            startTime: new Date(startTime).getTime(),
+            endTime: new Date(endTime).getTime()
+          })
+        }
+
+        if(['continuousKlines', 'indexPriceKlines'].includes(klineType)) {
+          args.pair = contractName
+        }
+
+        if(klineType === 'continuousKlines') {
+          args.contractType = contractType
         }
         
         const data = await this.fetch(klineType, 'GET', args)
@@ -387,7 +429,12 @@ export default class BinanceFutures {
     async cancelAllOpenedOrders(){
 
       return this.errorHandler.init(async () => {
-        return await this.fetch('allOpenOrders', 'DELETE')
+        const [orders] = await Promise.all([
+          this.fetch('allOpenOrders', 'DELETE'),
+          this.fetch('algoOpenOrders', 'DELETE')
+        ])
+
+        return orders
       })
 
       
@@ -449,12 +496,9 @@ export default class BinanceFutures {
 
         // If notional is above all brackets
         const last = brackets[brackets.length - 1];
-        return {
-          maxLeverage: last?.initialLeverage ?? null
-        }
+        return last?.initialLeverage ?? null
 
       })
     }
     
   }
-  

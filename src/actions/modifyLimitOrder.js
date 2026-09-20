@@ -29,24 +29,22 @@ export const modifyLimitOrder = async ({ main, orders = [], entryPrice, side, ex
         orders = await main.getOrders()
     }
 
-    const validSide = or => {
+    const hasRemainingQuantity = or => {
         const {origQty, executedQty} = or
         const quantity = parseFloat(origQty) - parseFloat(executedQty);
 
-        if(quantity !== 0)
-        {
-            if(quantity > 0 && side === 'BUY') return true
-            if(quantity < 0 && side === 'SELL') return true
-        }
-
-        return false
+        return Number.isFinite(quantity) && quantity > 0
     }
 
     const {contractName} = main
 
     const order = (Array.isArray(orders))
-    ? orders.find(o => o.symbol === contractName && o.type === 'LIMIT' && validSide(o))
+    ? orders.find(o => o.symbol === contractName && o.type === 'LIMIT' && o.side === side && hasRemainingQuantity(o))
     : false
+
+    if (!order) {
+        throw new Error(`No open ${side} limit order found for ${contractName}.`)
+    }
 
     const { orderId, origQty, executedQty, price: prevEntryPrice } = order;
 

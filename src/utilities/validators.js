@@ -107,7 +107,7 @@ export const validateStrategy = (strategy) => {
 export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
 
 
-  if(typeof triggerPrice === 'number' && triggerPrice >= 10)
+  if(typeof triggerPrice === 'number' && Number.isFinite(triggerPrice) && triggerPrice > 0)
   {
       //do nothing
   }
@@ -123,7 +123,7 @@ export const validateReduceOrders = (triggerPrice, handleExistingOrders) => {
 
 }
 
-export const validateOhlcv = ({ interval, limit, startTime, endTime, klineType }) => {
+export const validateOhlcv = ({ interval, limit, startTime, endTime, klineType, contractType }) => {
   const validIntervals = [
     "1m","3m","5m","15m","30m",
     "1h","2h","4h","6h","8h",
@@ -148,6 +148,12 @@ export const validateOhlcv = ({ interval, limit, startTime, endTime, klineType }
 
   if(typeof klineType !== 'string' || !validKlines.includes(klineType)) {
     throw new Error(`Invalid "klineType". Accepted values are: ${validKlines.join(", ")}.`);
+  }
+
+  const validContractTypes = ['PERPETUAL', 'CURRENT_QUARTER', 'NEXT_QUARTER', 'TRADIFI_PERPETUAL']
+
+  if(klineType === 'continuousKlines' && !validContractTypes.includes(contractType)) {
+    throw new Error(`Invalid "contractType". Accepted values for continuousKlines are: ${validContractTypes.join(", ")}.`)
   }
 
   const hasLimit = !isNil(limit);

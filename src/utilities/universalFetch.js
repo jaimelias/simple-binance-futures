@@ -2,7 +2,17 @@ import { getSignature } from './getSignature.js'
 import { handleNodeFetch } from './handleNodeFetch.js'
 import { handleGoogleAppsScriptFetch } from './handleGoogleAppsScriptFetch.js'
 
-const publicEndpoints = ['time']
+const publicEndpoints = [
+  'time',
+  'exchangeInfo',
+  'klines',
+  'continuousKlines',
+  'indexPriceKlines',
+  'markPriceKlines',
+  'premiumIndexKlines'
+]
+
+const endpointsWithoutSymbol = ['time', 'exchangeInfo', 'continuousKlines', 'indexPriceKlines']
 
 export const getEngine = () => {
     if (typeof ScriptApp !== 'undefined') {
@@ -23,7 +33,13 @@ export const getEngine = () => {
 
 export const universalFetch = async (main, pathname, method, payload, version) => {
 
-  const basePayload = { ...payload, symbol: main.contractName }
+  const basePayload = { ...payload }
+
+  const omitSymbol = endpointsWithoutSymbol.includes(pathname) || (pathname === 'algoOrder' && method === 'DELETE')
+
+  if (!omitSymbol && !basePayload.hasOwnProperty('symbol')) {
+    basePayload.symbol = main.contractName
+  }
 
   if (!publicEndpoints.includes(pathname)) {
     let timestamp = Date.now()
@@ -42,8 +58,12 @@ export const universalFetch = async (main, pathname, method, payload, version) =
     .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
     .join('&')
 
-  const signature = getSignature(main, queryString)
-  const signedQuery = !publicEndpoints.includes(pathname) ? `${queryString}&signature=${signature}`: queryString
+  let signedQuery = queryString
+
+  if (!publicEndpoints.includes(pathname)) {
+    const signature = await getSignature(main, queryString)
+    signedQuery = `${queryString}&signature=${signature}`
+  }
 
   // Prepare request options
   const headers = !publicEndpoints.includes(pathname) ? { 'X-MBX-APIKEY': main.API_KEY } : {}
@@ -79,5 +99,3 @@ export const universalFetch = async (main, pathname, method, payload, version) =
   }
 
 }
-
-

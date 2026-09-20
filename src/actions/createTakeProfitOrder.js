@@ -20,24 +20,7 @@ import { keyPairObjToString } from "../utilities/ErrorHandler.js"
  *   - An existing take-profit order is found and `handleExistingOrders` is set to `'ERROR'`.
  */
 
-export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingOrders, positions, orders, workingType = 'MARK_PRICE'}) => {
-    /* 
-      Payload for a BUY position:
-      {
-          "symbol": "BTCUSDT",
-          "side": "SELL",
-          "positionSide": "BOTH",
-          "type": "TAKE_PROFIT_MARKET",
-          "timeInForce": "GTE_GTC",
-          "quantity": 0,
-          "stopPrice": "100000",
-          "workingType": "MARK_PRICE",
-          "closePosition": true,
-          "placeType": "position",
-          "priceProtect": true
-      }
-    */
-
+export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingOrders, positions, orders}) => {
     validateReduceOrders(triggerPrice, handleExistingOrders)
 
     const type = 'TAKE_PROFIT_MARKET'
@@ -77,28 +60,24 @@ export const createTakeProfitOrder = async ({main, triggerPrice, handleExistingO
 
 
     const payload = {
-        symbol: contractName,
+        algoType: 'CONDITIONAL',
         side: side === 'BUY' ? 'SELL' : 'BUY',
         positionSide: 'BOTH',
         type,
-        timeInForce: 'GTE_GTC',
-        quantity: 0, // Close entire position
-        stopPrice: adjustedStopPrice,
+        triggerPrice: adjustedStopPrice,
         workingType: main.workingType,
         closePosition: true,
-        placeType: 'position',
-        priceProtect: true,
-        workingType
+        priceProtect: true
     }
 
-    const response = await main.fetch('order', 'POST', payload)
+    const response = await main.fetch('algoOrder', 'POST', payload)
 
     if(main.debug)
     {
       console.log('payload createTakeProfitOrder', {payload, response})
     }
 
-    if(!response.hasOwnProperty('orderId'))
+    if(!response.hasOwnProperty('algoId'))
     {
         await main.closePosition({positions, side})
         throw new Error(`Error in createTakeProfitOrder forced to close position: ${keyPairObjToString({contractName, ...response, side, triggerPrice, adjustedStopPrice, tickSize})}`)
@@ -112,12 +91,15 @@ const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type,
 
   if(!orders)
   {
-    orders = await main.getOrders()
+    orders = await main.getAlgoOrders()
   }
 
-  const order = orders.find(o => o.origType === type)
+  const matchingOrders = orders.filter(o => {
+    const orderType = o.orderType ?? o.origType ?? o.type
+    return o.symbol === main.contractName && orderType === type && o.closePosition === true
+  })
 
-  if(order)
+  if(matchingOrders.length > 0)
   {
 
     if(handleExistingOrders === 'KEEP')
@@ -129,15 +111,18 @@ const funcHandleExistingReduceOrders = async ({main, handleExistingOrders, type,
       throw new Error('New "take profit" order not execute because of an existing "take profit" order.')
     }
     
-    const stopPrice = parseFloat(order.stopPrice)
+    const samePriceOrder = matchingOrders.find(order => {
+      const orderTriggerPrice = parseFloat(order.triggerPrice ?? order.stopPrice)
+      return orderTriggerPrice === triggerPrice
+    })
 
-    if(stopPrice === triggerPrice) return true
+    if(samePriceOrder) return true
 
-    const canceledOrder = await main.cancelOrder(order)
+    const canceledOrders = await Promise.all(matchingOrders.map(order => main.cancelAlgoOrder(order)))
 
     if(main.debug)
     {
-      console.log(`createTakeProfitOrder canceled order`, canceledOrder)
+      console.log(`createTakeProfitOrder canceled orders`, canceledOrders)
     }
   }
 
