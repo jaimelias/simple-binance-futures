@@ -127,9 +127,12 @@ export const validateStrategy = (strategy) => {
       throw new Error('Invalid "environment" property. Only "testnet" and "production" are accepted.')
     }
   
-    if (typeof strategy.symbol !== 'string' || !/^[A-Z0-9]+$/.test(strategy.symbol)) {
-      throw new Error('Invalid "symbol" property in strategy object.')
-    }
+  if (
+    typeof strategy.symbol !== 'string' ||
+    !/^(?:[A-Z0-9]|\p{Script=Han})+$/u.test(strategy.symbol)
+  ) {
+    throw new Error('Invalid "symbol" property in strategy object.')
+  }
 
     if(typeof strategy.settlementCurrency !== 'string' || !/^[A-Z0-9]+$/.test(strategy.settlementCurrency))
     {
