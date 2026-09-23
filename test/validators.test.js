@@ -17,29 +17,7 @@ import {
   validateStrategy
 } from '../src/utilities/validators.js'
 
-const contractInfo = {
-  symbol: 'BTCUSDT',
-  pricePrecision: 2,
-  quantityPrecision: 3,
-  filters: [
-    {filterType: 'PRICE_FILTER', tickSize: '0.10'},
-    {filterType: 'LOT_SIZE', minQty: '0.001', maxQty: '1000', stepSize: '0.001'},
-    {filterType: 'MIN_NOTIONAL', notional: '5'}
-  ]
-}
-
-const leverageBracket = {
-  symbol: 'BTCUSDT',
-  notionalCoef: 1,
-  brackets: [{notionalFloor: 0, notionalCap: 50000, initialLeverage: 20}]
-}
-
-const strategy = overrides => ({
-  environment: 'testnet',
-  symbol: 'BTC',
-  settlementCurrency: 'USDT',
-  ...overrides
-})
+import {contractInfo, leverageBracket, strategy} from './helpers.js'
 
 test('numeric validators reject NaN, Infinity, and invalid signs', () => {
   for(const value of [NaN, Infinity, -Infinity, 0, -1]) {
@@ -84,6 +62,9 @@ test('strategy validates funding nullability and preloaded exchange structures',
   assert.throws(() => validateStrategy(strategy({balance: NaN})), /balance/)
   assert.throws(() => validateStrategy(strategy({contractInfo: {symbol: 'BTCUSDT'}})), /contractInfo/)
   assert.throws(() => validateStrategy(strategy({leverageBracket: {brackets: []}})), /leverageBracket/)
+  for (const rateLimitCoolDownSeconds of [0, 1.5]) {
+    assert.throws(() => validateStrategy(strategy({rateLimitCoolDownSeconds})), /rateLimitCoolDownSeconds/)
+  }
 })
 
 test('contract and leverage validators reject incomplete or mismatched data', () => {

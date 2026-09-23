@@ -7,6 +7,7 @@ A JavaScript client for trading USDT-M perpetual contracts on Binance Futures fr
 ## Features
 
 - Compatible with Node.js and Google Apps Script.
+- Static market-data methods without API credentials.
 - Market, limit, and stop-limit orders.
 - Stop-loss and take-profit orders for open positions.
 - Contract, mark price, index price, premium index, and continuous-contract candles.
@@ -27,7 +28,6 @@ npm install simple-binance-futures
 The package uses ES modules:
 
 ```js
-import crypto from 'node:crypto'
 import BinanceFutures, { RateLimitError } from 'simple-binance-futures'
 ```
 
@@ -37,7 +37,56 @@ To import the repository directly during development:
 import BinanceFutures, { RateLimitError } from './index.js'
 ```
 
-## Node.js quick start
+## Public market data without authentication
+
+Call market-data methods directly on the class. No instance, API key, secret, or signing library is needed:
+
+```js
+import BinanceFutures from 'simple-binance-futures'
+
+const candles = await BinanceFutures.ohlcv('BTCUSDT', {
+  interval: '1h', limit: 200
+})
+
+const levels = await BinanceFutures.getLiquidationLevels('BTCUSDT', {
+  interval: '1h', limit: 500, step: 50
+})
+
+const contract = await BinanceFutures.getContractInfo('BTCUSDT')
+```
+
+Static methods take the **full contract symbol**, such as `BTCUSDT`, and default to `production`. Method parameters and connection options are separate arguments:
+
+| Static method | Result |
+| --- | --- |
+| `BinanceFutures.getServerTime(options)` | Server time in milliseconds. |
+| `BinanceFutures.getExchangeInfo(options)` | Exchange metadata. |
+| `BinanceFutures.getContractInfo(symbol, options)` | Contract filters and precision. |
+| `BinanceFutures.ohlcv(symbol, params, options)` | Normalized candles; `params` can also be a batch array. |
+| `BinanceFutures.getLiquidationLevels(symbol, params, options)` | Estimated liquidation clusters. |
+| `BinanceFutures.getFundingState(symbol, params, options)` | Funding rate, interval, settlement, and estimated cost. |
+| `BinanceFutures.evaluateFundingRisk(state, policy)` | Evaluates a funding state without a request. |
+| `BinanceFutures.getRateLimitRemainingSeconds(options)` | Remaining cooldown for static calls. |
+
+All `options` arguments are optional. They accept `environment` (`production` or `testnet`), `proxy` (HTTP(S) base URL without a query or fragment), `callbacks`, `debug`, `rateLimitCoolDownSeconds`, and `fundingFeePolicy`. Funding state uses `fundingFeePolicy.expectedIntervalHours`, defaulting to `8`. To evaluate a state, pass the desired policy explicitly to `evaluateFundingRisk`.
+
+```js
+const options = {
+  environment: 'testnet',
+  callbacks: {errorLogger: message => console.error(message)}
+}
+
+const prices = await BinanceFutures.ohlcv('ETHUSDT', [
+  {interval: '5m', limit: 100},
+  {interval: '1h', limit: 100}
+], options)
+```
+
+Node.js uses its global `fetch` by default for static calls; supply `options.callbacks.fetch` to inject another Fetch implementation. Google Apps Script uses `UrlFetchApp`. Connection options and callbacks belong to each call; there is no global configuration to switch between symbols or environments.
+
+Trading instances inherit the same market-data implementation and use their configured contract. `exchange.ohlcv(params)` updates that instance's `latestPrice` for order sizing; a static call has no effect on a trading instance. Account data, leverage brackets, and order actions require an authenticated instance.
+
+## Node.js trading quick start
 
 Keep credentials outside your source code, for example in a `.env` file that is not committed to Git:
 
@@ -166,12 +215,12 @@ const order = await exchange.createMarketOrder({
 
 ## Market data
 
-### `ohlcv(params)`
+### `BinanceFutures.ohlcv(symbol, params, options)`
 
 Fetches candles and returns normalized objects:
 
 ```js
-const candles = await exchange.ohlcv({
+const candles = await BinanceFutures.ohlcv('BTCUSDT', {
   interval: '1h',
   limit: 200,
   klineType: 'klines'
@@ -200,7 +249,7 @@ Parameters:
 Unix timestamps in seconds are not valid. Use `Date.now()`, not `Math.floor(Date.now() / 1000)`. A date string must include `Z` or an offset such as `-05:00`:
 
 ```js
-const historical = await exchange.ohlcv({
+const historical = await BinanceFutures.ohlcv('BTCUSDT', {
   interval: '1h',
   startTime: '2026-09-01T00:00:00Z',
   endTime: '2026-09-02T00:00:00Z',
@@ -211,7 +260,7 @@ const historical = await exchange.ohlcv({
 You can also request multiple intervals. Do not repeat an interval within the same batch:
 
 ```js
-const prices = await exchange.ohlcv([
+const prices = await BinanceFutures.ohlcv('BTCUSDT', [
   {interval: '5m', limit: 100, klineType: 'markPriceKlines'},
   {interval: '1h', limit: 100, klineType: 'markPriceKlines'}
 ])
@@ -219,14 +268,14 @@ const prices = await exchange.ohlcv([
 console.log(prices['5m'], prices['1h'])
 ```
 
-`volume` is only included for `klines` and `continuousKlines`. Recent requests update `exchange.latestPrice`; historical requests and `premiumIndexKlines` do not overwrite it.
+`volume` is only included for `klines` and `continuousKlines`. When using the instance method `exchange.ohlcv(params)`, recent requests update `exchange.latestPrice`; historical requests and `premiumIndexKlines` do not overwrite it.
 
-### `getLiquidationLevels(options)`
+### `BinanceFutures.getLiquidationLevels(symbol, params, options)`
 
-Estimates potential liquidation clusters for the configured symbol. This uses traded base-asset volume as a **score**, not as open position size or liquidation volume. It assumes equal long/short and leverage shares, a fixed maintenance margin rate, and isolated margin with no added collateral or fees. Binance does not disclose each trader's entry, leverage, margin, or position lifecycle through candle data, so these levels are not actual positions or a Coinglass/Hyblock heatmap. Do not use the scores as a risk or order-sizing measure.
+Estimates potential liquidation clusters for the requested symbol. This uses traded base-asset volume as a **score**, not as open position size or liquidation volume. It assumes equal long/short and leverage shares, a fixed maintenance margin rate, and isolated margin with no added collateral or fees. Binance does not disclose each trader's entry, leverage, margin, or position lifecycle through candle data, so these levels are not actual positions or a Coinglass/Hyblock heatmap. Do not use the scores as a risk or order-sizing measure.
 
 ```js
-const levels = await exchange.getLiquidationLevels({
+const levels = await BinanceFutures.getLiquidationLevels('BTCUSDT', {
   interval: '1h',
   limit: 500,
   step: 50, // USDT per bucket; omit for 0.1% of the latest closed mark price
@@ -244,14 +293,13 @@ The method fetches regular and mark-price candles through the existing Binance c
 
 ## Account and leverage
 
+These methods use an authenticated trading instance.
+
 | Method | Result |
 | --- | --- |
-| `getServerTime()` | Binance server time in milliseconds. |
 | `getBalance(reloadBalances = true)` | Settlement-currency balance. With `false`, reuses the in-memory balance when available. |
 | `getPositions()` | Positions returned by Binance for the account. |
 | `getParsedPositions()` | Contract positions grouped into `{BUY, SELL}`. |
-| `getExchangeInfo()` | Exchange metadata. |
-| `getContractInfo()` | Filters and precision values for the configured contract. |
 | `getLeverageBracket()` | Account and contract leverage brackets. |
 | `getMaxLevarage(notional)` | Maximum leverage for a notional. The name preserves the current API spelling. |
 | `changeLeverage(leverage, notional)` | Applies the smaller of the requested and allowed values. |
@@ -469,7 +517,7 @@ const callbacks = {
 
 ## Rate limits
 
-When Binance responds with `429` or `418`, the instance is locked until the `Retry-After` period ends. If that header is absent, the library uses `rateLimitCoolDownSeconds`.
+When Binance responds with `429` or `418`, subsequent requests are blocked until the `Retry-After` period ends. If that header is absent, the library uses `rateLimitCoolDownSeconds`.
 
 ```js
 try {
@@ -493,12 +541,13 @@ A `RateLimitError` exposes:
 - `rateLimitUsage`: observed `X-MBX-USED-WEIGHT-*` and `X-MBX-ORDER-COUNT-*` headers.
 - `isLocalCooldown`: `true` when the request was stopped locally.
 
-The library does not automatically retry an order because doing so could duplicate a trade. In Node.js, the lock lives on the current instance. In Google Apps Script, it is shared through `CacheService` and `PropertiesService`.
+The library does not automatically retry an order because doing so could duplicate a trade. In Node.js, trading instances keep their own cooldown. Static calls share a cooldown per endpoint, including across different symbols. In Google Apps Script, cooldowns are also shared across executions through `CacheService` and `PropertiesService`.
 
 You can also inspect the cooldown without making a request:
 
 ```js
-const remaining = exchange.getRateLimitRemainingSeconds()
+const publicRemaining = BinanceFutures.getRateLimitRemainingSeconds({environment: 'testnet'})
+const accountRemaining = exchange.getRateLimitRemainingSeconds()
 ```
 
 ## Simple strategies
@@ -638,7 +687,21 @@ npm run build
 
 Copy the contents of `dist/google-apps-script-build.js` into a `.gs` file. Webpack exposes a global object named `BinanceFutures`; the class is available as `BinanceFutures.default`.
 
-Store credentials in Script Properties:
+For public data, call the static methods on `BinanceFutures.default`:
+
+```js
+async function readPublicMarketData() {
+  var candles = await BinanceFutures.default.ohlcv('BTCUSDT', {
+    interval: '1h', limit: 100
+  })
+  var levels = await BinanceFutures.default.getLiquidationLevels('BTCUSDT', {
+    interval: '1h', step: 50
+  })
+  console.log(candles[candles.length - 1], levels)
+}
+```
+
+This path needs no credentials, crypto callback, or timezone setup. For trading, store credentials in Script Properties:
 
 ```js
 function createExchange() {
@@ -726,21 +789,19 @@ All trading methods throw errors. Wrap calls in `try/catch` and log the relevant
 ## Development and testing
 
 ```bash
-# Unit tests that do not submit real orders
-npm run test:unit
+# Run the offline suite
+npm test
+
+# Run one focused suite
+node --test test/static-market-data.test.js
 
 # Regenerate the Google Apps Script bundle
 npm run build
 ```
 
-`npm test` runs the end-to-end action test against Binance Futures testnet. It creates, modifies, and cancels orders, opens a market position, and finally attempts to close it. It requires testnet credentials and must not be confused with a harmless unit test.
+The tests use Node's built-in test runner, dummy credentials, and mocked requests. `npm test` requires no Binance credentials and submits no live orders.
 
-Optional end-to-end test variables:
-
-```env
-BINANCE_TEST_AMOUNT_USD=25
-BINANCE_TEST_LEVERAGE=5
-```
+Tests cover static market data, authenticated signing and order payloads, funding protection, candle and liquidation calculations, validation, caches, and cooldowns. Shared fixtures and Apps Script service mocks live in `test/helpers.js`; Apps Script deployment still requires generating and checking the bundle.
 
 ## License
 

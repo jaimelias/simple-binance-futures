@@ -1,149 +1,67 @@
 import assert from 'node:assert/strict'
-import crypto from 'node:crypto'
 import test from 'node:test'
-
 import BinanceFutures from '../index.js'
+import {createExchange, jsonResponse, unexpectedRequest} from './helpers.js'
 
-const createExchange = () => new BinanceFutures(
-  {
-    testnet: {
-      API_KEY: 'ohlcv-test-api-key',
-      API_SECRET: 'ohlcv-test-api-secret'
-    }
-  },
-  {
-    environment: 'testnet',
-    symbol: 'BTC',
-    settlementCurrency: 'USDT'
-  },
-  {
-    crypto,
-    fetch: async () => {
-      throw new Error('Unexpected network request.')
-    }
-  }
-)
+const candle = (close = '60000') => [1789862400000, '59000', '61000', '58000', close, '12.5']
 
-const candle = ({time = 1789862400000, close = '60000.00'} = {}) => [
-  time,
-  '59000.00',
-  '61000.00',
-  '58000.00',
-  close,
-  '12.50',
-  time + 59999,
-  '0',
-  1,
-  '0',
-  '0',
-  '0'
-]
-
-test('ohlcv sends and returns Binance timestamps as epoch milliseconds and preserves limit', async () => {
-  const exchange = createExchange()
-  let request
-
-  exchange.fetch = async (endpoint, method, args) => {
-    request = {endpoint, method, args}
-    return [candle()]
-  }
-
-  const candles = await exchange.ohlcv({
-    interval: '1h',
-    startTime: '2026-09-20T00:00:00Z',
-    endTime: new Date('2026-09-20T08:00:00Z'),
-    limit: 20
+test('static ohlcv normalizes dates and sends Binance timestamps in milliseconds', async t => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => jsonResponse([candle()]))
+  const candles = await BinanceFutures.ohlcv('BTCUSDT', {
+    interval: '1h', limit: 20,
+    startTime: '2026-09-20T00:00:00Z', endTime: new Date('2026-09-20T08:00:00Z')
   })
-
-  assert.deepEqual(request, {
-    endpoint: 'klines',
-    method: 'GET',
-    args: {
-      interval: '1h',
-      limit: 20,
-      startTime: 1789862400000,
-      endTime: 1789891200000
-    }
+  const url = new URL(fetch.mock.calls[0].arguments[0])
+  assert.equal(url.pathname, '/fapi/v1/klines')
+  assert.deepEqual(Object.fromEntries(url.searchParams), {
+    symbol: 'BTCUSDT', interval: '1h', limit: '20',
+    startTime: '1789862400000', endTime: '1789891200000'
   })
-  assert.equal(candles[0].date, 1789862400000)
+  assert.deepEqual(candles, [{
+    date: 1789862400000, open: 59000, high: 61000, low: 58000, close: 60000, volume: 12.5
+  }])
 })
 
-test('ohlcv accepts independently optional time parameters and rejects ambiguous times', async () => {
-  const exchange = createExchange()
-  const requests = []
-
-  exchange.fetch = async (endpoint, method, args) => {
-    requests.push(args)
-    return [candle()]
+test('static ohlcv accepts independently optional start and end times', async t => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => jsonResponse([candle()]))
+  for (const times of [{}, {startTime: 1789862400000}, {endTime: 1789891200000}]) {
+    await BinanceFutures.ohlcv('BTCUSDT', {interval: '1m', ...times})
   }
-
-  await exchange.ohlcv({interval: '1m'})
-  await exchange.ohlcv({interval: '1m', startTime: 1789862400000})
-  await exchange.ohlcv({interval: '1m', endTime: 1789891200000})
-
-  assert.deepEqual(requests, [
-    {interval: '1m'},
-    {interval: '1m', startTime: 1789862400000},
-    {interval: '1m', endTime: 1789891200000}
-  ])
-
-  await assert.rejects(
-    exchange.ohlcv({interval: '1m', startTime: 1710000000}),
-    /epoch timestamp in milliseconds/
-  )
-  await assert.rejects(
-    exchange.ohlcv({interval: '1m', startTime: '2026-09-20 00:00:00'}),
-    /explicit timezone/
-  )
-  await assert.rejects(
-    exchange.ohlcv({interval: '1m', limit: 1.5}),
-    /must be an integer/
-  )
+  const times = fetch.mock.calls.map(({arguments: [url]}) => {
+    const query = new URL(url).searchParams
+    return [query.get('startTime'), query.get('endTime'), query.get('limit')]
+  })
+  assert.deepEqual(times, [[null, null, null], ['1789862400000', null, null], [null, '1789891200000', null]])
 })
 
-test('ohlcv does not replace latestPrice with historical or premium-index values', async () => {
+test('static ohlcv rejects invalid timestamps, limits, and duplicate intervals before fetching', async t => {
+  const fetch = t.mock.method(globalThis, 'fetch', unexpectedRequest)
+  for (const [params, error] of [
+    [{interval: '1m', startTime: 1710000000}, /epoch timestamp in milliseconds/],
+    [{interval: '1m', startTime: '2026-09-20 00:00:00'}, /explicit timezone/],
+    [{interval: '1m', limit: 1.5}, /must be an integer/],
+    [[{interval: '1h'}, {interval: '1h', klineType: 'markPriceKlines'}], /Duplicate "interval"/]
+  ]) {
+    await assert.rejects(BinanceFutures.ohlcv('BTCUSDT', params), error)
+  }
+  assert.equal(fetch.mock.callCount(), 0)
+})
+
+test('instance ohlcv updates latestPrice only for recent price candles', async () => {
   const exchange = createExchange()
   exchange.latestPrice = 50000
-  exchange.fetch = async () => [candle({close: '0.0005'})]
-
-  await exchange.ohlcv({
-    interval: '1h',
-    startTime: '2026-09-20T00:00:00Z',
-    endTime: '2026-09-20T08:00:00Z'
-  })
+  exchange.fetch = async () => [candle('0.0005')]
+  await exchange.ohlcv({interval: '1h', startTime: '2026-09-20T00:00:00Z'})
   assert.equal(exchange.latestPrice, 50000)
-
-  await exchange.ohlcv({interval: '1h', limit: 1, klineType: 'premiumIndexKlines'})
+  const premium = await exchange.ohlcv({interval: '1h', klineType: 'premiumIndexKlines'})
   assert.equal(exchange.latestPrice, 50000)
+  assert.equal('volume' in premium[0], false)
 
-  exchange.fetch = async () => [candle({close: '61000.00'})]
-  await exchange.ohlcv({interval: '1h', limit: 1, klineType: 'markPriceKlines'})
+  exchange.fetch = async () => [candle('61000')]
+  await exchange.ohlcv({interval: '1h', klineType: 'markPriceKlines'})
   assert.equal(exchange.latestPrice, 61000)
-})
 
-test('ohlcv accepts an empty response without changing latestPrice', async () => {
-  const exchange = createExchange()
-  exchange.latestPrice = 50000
   exchange.fetch = async () => []
-
-  assert.deepEqual(await exchange.ohlcv({interval: '1m', limit: 1}), [])
-  assert.equal(exchange.latestPrice, 50000)
-})
-
-test('ohlcv rejects duplicate batch intervals instead of overwriting results', async () => {
-  const exchange = createExchange()
-  let requestCount = 0
-  exchange.fetch = async () => {
-    requestCount += 1
-    return [candle()]
-  }
-
-  await assert.rejects(
-    exchange.ohlcv([
-      {interval: '1h', limit: 1, klineType: 'klines'},
-      {interval: '1h', limit: 1, klineType: 'markPriceKlines'}
-    ]),
-    /Duplicate "interval"/
-  )
-  assert.equal(requestCount, 0)
+  assert.deepEqual(await exchange.ohlcv({interval: '1m'}), [])
+  assert.equal(exchange.latestPrice, 61000)
 })

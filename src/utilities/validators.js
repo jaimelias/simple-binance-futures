@@ -91,6 +91,12 @@ export const validateEnvironment = (environment) => {
       throw new Error('Invalid environment. Allowed values are "testnet" and "production".')
     }
   }
+
+export const validateProxy = proxy => {
+  if (proxy !== undefined && (typeof proxy !== 'string' || !/^https?:\/\/[^\s/?#]+(?:\/[^\s?#]*)?$/.test(proxy))) {
+    throw new Error('"proxy" must be an HTTP(S) base URL without a query or fragment.')
+  }
+}
   
 export const validateCredentials = (credentials, environment) => {
     if (!isPlainObject(credentials)) {
@@ -113,6 +119,8 @@ export const validateCredentials = (credentials, environment) => {
     if (!hasOwn(envCredentials, 'API_SECRET') || typeof envCredentials.API_SECRET !== 'string' || envCredentials.API_SECRET.trim() === '') {
         throw new Error(`Missing or invalid "API_SECRET" in credentials for environment "${environment}".`)
     }
+
+    validateProxy(envCredentials.PROXY)
 }
   
 export const validateStrategy = (strategy) => {
@@ -206,76 +214,76 @@ export const validateStrategy = (strategy) => {
       }
     }
 
-    if(hasOwn(strategy, 'fundingFeePolicy'))
+    if(hasOwn(strategy, 'fundingFeePolicy')) validateFundingFeePolicy(strategy.fundingFeePolicy)
+
+}
+
+
+export const validateFundingFeePolicy = (policy = {}) => {
+  if(!isPlainObject(policy))
+  {
+    throw new Error('Invalid "fundingFeePolicy". It must be an object.')
+  }
+
+  if(hasOwn(policy, 'enabled') && typeof policy.enabled !== 'boolean')
+  {
+    throw new Error('Invalid "fundingFeePolicy.enabled". It must be a boolean.')
+  }
+
+  if(hasOwn(policy, 'expectedIntervalHours') && (!Number.isInteger(policy.expectedIntervalHours) || policy.expectedIntervalHours <= 0))
+  {
+    throw new Error('Invalid "fundingFeePolicy.expectedIntervalHours". It must be a positive integer.')
+  }
+
+  const validateRate = (property, {allowNull = false} = {}) => {
+    if(!hasOwn(policy, property)) return
+    const value = policy[property]
+
+    if(allowNull && value === null) return
+
+    if(typeof value !== 'number' || !Number.isFinite(value) || value < 0)
     {
-      const policy = strategy.fundingFeePolicy
-
-      if(!isPlainObject(policy))
-      {
-        throw new Error('Invalid "fundingFeePolicy" property in strategy object. It must be an object.')
-      }
-
-      if(hasOwn(policy, 'enabled') && typeof policy.enabled !== 'boolean')
-      {
-        throw new Error('Invalid "fundingFeePolicy.enabled". It must be a boolean.')
-      }
-
-      if(hasOwn(policy, 'expectedIntervalHours') && (!Number.isInteger(policy.expectedIntervalHours) || policy.expectedIntervalHours <= 0))
-      {
-        throw new Error('Invalid "fundingFeePolicy.expectedIntervalHours". It must be a positive integer.')
-      }
-
-      const validateRate = (property, {allowNull = false} = {}) => {
-        if(!hasOwn(policy, property)) return
-        const value = policy[property]
-
-        if(allowNull && value === null) return
-
-        if(typeof value !== 'number' || !Number.isFinite(value) || value < 0)
-        {
-          throw new Error(`Invalid "fundingFeePolicy.${property}". It must be a finite, non-negative decimal rate${allowNull ? ' or null' : ''}.`)
-        }
-      }
-
-      const fundingPolicyEnabled = policy.enabled ?? false
-
-      validateRate('maxFundingRatePerHour', {allowNull: !fundingPolicyEnabled})
-      validateRate('maxFundingRatePerSettlement', {allowNull: true})
-
-      if(fundingPolicyEnabled && !hasOwn(policy, 'maxFundingRatePerHour'))
-      {
-        throw new Error('Missing "fundingFeePolicy.maxFundingRatePerHour" for an enabled funding fee policy.')
-      }
-
-      if(hasOwn(policy, 'entryBlackoutMinutes') && (
-        typeof policy.entryBlackoutMinutes !== 'number' ||
-        !Number.isFinite(policy.entryBlackoutMinutes) ||
-        policy.entryBlackoutMinutes < 0
-      ))
-      {
-        throw new Error('Invalid "fundingFeePolicy.entryBlackoutMinutes". It must be a finite, non-negative number.')
-      }
-
-      if(hasOwn(policy, 'postFundingBufferSeconds') && (
-        typeof policy.postFundingBufferSeconds !== 'number' ||
-        !Number.isFinite(policy.postFundingBufferSeconds) ||
-        policy.postFundingBufferSeconds < 0
-      ))
-      {
-        throw new Error('Invalid "fundingFeePolicy.postFundingBufferSeconds". It must be a finite, non-negative number.')
-      }
-
-      if(hasOwn(policy, 'pendingOrderAction') && !['IGNORE', 'ALERT', 'CANCEL'].includes(policy.pendingOrderAction))
-      {
-        throw new Error('Invalid "fundingFeePolicy.pendingOrderAction". Only "IGNORE", "ALERT", and "CANCEL" are accepted.')
-      }
-
-      if(hasOwn(policy, 'openPositionAction') && !['IGNORE', 'ALERT', 'CLOSE'].includes(policy.openPositionAction))
-      {
-        throw new Error('Invalid "fundingFeePolicy.openPositionAction". Only "IGNORE", "ALERT", and "CLOSE" are accepted.')
-      }
+      throw new Error(`Invalid "fundingFeePolicy.${property}". It must be a finite, non-negative decimal rate${allowNull ? ' or null' : ''}.`)
     }
+  }
 
+  const fundingPolicyEnabled = policy.enabled ?? false
+
+  validateRate('maxFundingRatePerHour', {allowNull: !fundingPolicyEnabled})
+  validateRate('maxFundingRatePerSettlement', {allowNull: true})
+
+  if(fundingPolicyEnabled && !hasOwn(policy, 'maxFundingRatePerHour'))
+  {
+    throw new Error('Missing "fundingFeePolicy.maxFundingRatePerHour" for an enabled funding fee policy.')
+  }
+
+  if(hasOwn(policy, 'entryBlackoutMinutes') && (
+    typeof policy.entryBlackoutMinutes !== 'number' ||
+    !Number.isFinite(policy.entryBlackoutMinutes) ||
+    policy.entryBlackoutMinutes < 0
+  ))
+  {
+    throw new Error('Invalid "fundingFeePolicy.entryBlackoutMinutes". It must be a finite, non-negative number.')
+  }
+
+  if(hasOwn(policy, 'postFundingBufferSeconds') && (
+    typeof policy.postFundingBufferSeconds !== 'number' ||
+    !Number.isFinite(policy.postFundingBufferSeconds) ||
+    policy.postFundingBufferSeconds < 0
+  ))
+  {
+    throw new Error('Invalid "fundingFeePolicy.postFundingBufferSeconds". It must be a finite, non-negative number.')
+  }
+
+  if(hasOwn(policy, 'pendingOrderAction') && !['IGNORE', 'ALERT', 'CANCEL'].includes(policy.pendingOrderAction))
+  {
+    throw new Error('Invalid "fundingFeePolicy.pendingOrderAction". Only "IGNORE", "ALERT", and "CANCEL" are accepted.')
+  }
+
+  if(hasOwn(policy, 'openPositionAction') && !['IGNORE', 'ALERT', 'CLOSE'].includes(policy.openPositionAction))
+  {
+    throw new Error('Invalid "fundingFeePolicy.openPositionAction". Only "IGNORE", "ALERT", and "CLOSE" are accepted.')
+  }
 }
 
 
@@ -366,7 +374,7 @@ export const validateOhlcv = ({ interval, limit, startTime, endTime, klineType, 
 };
 
 
-export const validateCallbacks = (callbacks = {}, engine) => {
+export const validateCallbacks = (callbacks = {}, engine, {authenticated = true} = {}) => {
   if (!isPlainObject(callbacks)) {
     throw new Error(`Invalid type: "callbacks" property must be an object.`);
   }
@@ -387,6 +395,8 @@ export const validateCallbacks = (callbacks = {}, engine) => {
     } else {
       throw new Error(`The current engine "${engine}" requires "fetch" to be provided as a parameter in callbacks.`);
     }
+
+    if (!authenticated) return
 
     if (hasOwn(callbacks, 'crypto')) {
       const crypto = callbacks.crypto

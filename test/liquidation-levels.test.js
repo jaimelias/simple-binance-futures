@@ -1,96 +1,73 @@
 import assert from 'node:assert/strict'
-import crypto from 'node:crypto'
 import test from 'node:test'
-
 import BinanceFutures from '../index.js'
+import {jsonResponse, unexpectedRequest} from './helpers.js'
 
-const createExchange = () => new BinanceFutures(
-  {testnet: {API_KEY: 'test-key', API_SECRET: 'test-secret'}},
-  {environment: 'testnet', symbol: 'BTC', settlementCurrency: 'USDT'},
-  {crypto, fetch: async () => { throw new Error('Unexpected network request.') }}
+const time = 1600000000000
+const row = (openTime, low = 99, volume = 10, closeTime = openTime + 59999) => (
+  [openTime, '100', '101', String(low), '100', String(volume), closeTime]
 )
+const params = {interval: '1m', limit: 2, step: 1, leverages: [10], maintenanceMarginRate: 0}
 
-const row = (time, high, low, close, volume = '10', closeTime = time + 59999) => [
-  time, String(close), String(high), String(low), String(close), String(volume), closeTime
-]
-
-test('estimates levels from mark prices and drops levels touched by later mark candles', async () => {
-  const exchange = createExchange()
-  const time = 1600000000000
-  const requests = []
-  exchange.fetch = async (endpoint, method, args) => {
-    requests.push({endpoint, method, args})
-    if(endpoint === 'klines') return [
-      row(time, 101, 99, 100, '10'),
-      row(time + 60000, 101, 89, 100, '20')
-    ]
-    return [
-      row(time, 101, 99, 100, '0'),
-      row(time + 60000, 101, 89, 100, '0')
-    ]
-  }
-
-  const levels = await exchange.getLiquidationLevels({interval: '1m', limit: 2, step: 1, leverages: [10], maintenanceMarginRate: 0})
-  assert.deepEqual(requests, [
-    {endpoint: 'klines', method: 'GET', args: {interval: '1m', limit: 2}},
-    {endpoint: 'markPriceKlines', method: 'GET', args: {interval: '1m', limit: 2}}
-  ])
+test('static liquidation levels use mark prices to invalidate older levels', async t => {
+  const fetch = t.mock.method(globalThis, 'fetch', async url => jsonResponse(
+    new URL(url).pathname.endsWith('/klines')
+      ? [row(time), row(time + 60000, 99, 20)]
+      : [row(time, 99, 0), row(time + 60000, 89, 0)]
+  ))
+  const levels = await BinanceFutures.getLiquidationLevels('BTCUSDT', params)
   assert.deepEqual(levels, {
-    method: 'volumeProxy',
-    step: 1,
-    candleCount: 2,
+    method: 'volumeProxy', step: 1, candleCount: 2,
     longLiquidations: [{price: 90, score: 10}],
     shortLiquidations: [{price: 110, score: 15}]
   })
-  assert.equal(exchange.latestPrice, 0)
+  assert.deepEqual(fetch.mock.calls.map(({arguments: [url, options]}) => {
+    const parsed = new URL(url)
+    assert.equal(options.method, 'GET')
+    assert.deepEqual(options.headers, {})
+    assert.deepEqual(Object.fromEntries(parsed.searchParams), {symbol: 'BTCUSDT', interval: '1m', limit: '2'})
+    return parsed.pathname
+  }), ['/fapi/v1/klines', '/fapi/v1/markPriceKlines'])
 })
 
-test('uses the isolated-margin maintenance equation for modeled prices', async () => {
-  const exchange = createExchange()
-  const candle = row(1600000000000, 101, 99, 100, '10')
-  exchange.fetch = async () => [candle]
-  const levels = await exchange.getLiquidationLevels({
-    step: 0.01,
-    leverages: [10],
-    maintenanceMarginRate: 0.004
+test('liquidation estimates apply maintenance margin to the isolated-margin equation', async t => {
+  t.mock.method(globalThis, 'fetch', async () => jsonResponse([row(time)]))
+  const levels = await BinanceFutures.getLiquidationLevels('BTCUSDT', {
+    ...params, step: 0.01, maintenanceMarginRate: 0.004
   })
-
   assert.equal(levels.longLiquidations[0].price.toFixed(2), '90.36')
   assert.equal(levels.shortLiquidations[0].price.toFixed(2), '109.56')
 })
 
-test('uses mark prices, ignores open candles, and rejects misaligned candle responses', async () => {
-  const exchange = createExchange()
-  const time = 1600000000000
-  const openTime = Date.now() - 1000
-  exchange.fetch = async endpoint => endpoint === 'klines'
-    ? [row(time, 101, 99, 100, '10'), row(openTime, 101, 99, 100, '1000', Date.now() + 60000)]
-    : [row(time, 101, 99, 100, '0'), row(openTime, 101, 99, 100, '0', Date.now() + 60000)]
-
-  const levels = await exchange.getLiquidationLevels({step: 1, leverages: [10], maintenanceMarginRate: 0})
+test('an open candle invalidates old levels but contributes no new score', async t => {
+  const now = time + 60000
+  t.mock.method(Date, 'now', () => now)
+  let low = 99
+  t.mock.method(globalThis, 'fetch', async () => jsonResponse([
+    row(time), row(now, low, 1000)
+  ]))
+  const levels = await BinanceFutures.getLiquidationLevels('BTCUSDT', params)
   assert.equal(levels.candleCount, 1)
   assert.deepEqual(levels.longLiquidations, [{price: 90, score: 5}])
-
-  exchange.fetch = async endpoint => endpoint === 'klines'
-    ? [row(time, 101, 99, 100, '10'), row(openTime, 101, 89, 100, '1000', Date.now() + 60000)]
-    : [row(time, 101, 99, 100, '0'), row(openTime, 101, 89, 100, '0', Date.now() + 60000)]
-  const touched = await exchange.getLiquidationLevels({step: 1, leverages: [10], maintenanceMarginRate: 0})
+  low = 89
+  const touched = await BinanceFutures.getLiquidationLevels('BTCUSDT', params)
   assert.deepEqual(touched.longLiquidations, [])
-
-  exchange.fetch = async endpoint => endpoint === 'klines'
-    ? [row(time, 101, 99, 100)]
-    : [row(time + 60000, 101, 99, 100)]
-  await assert.rejects(exchange.getLiquidationLevels(), /not aligned by open time/)
 })
 
-test('rejects invalid options before fetching', async () => {
-  const exchange = createExchange()
-  let calls = 0
-  exchange.fetch = async () => { calls++; return [] }
+test('liquidation estimates reject misaligned trade and mark candles', async t => {
+  t.mock.method(globalThis, 'fetch', async url => jsonResponse([
+    row(new URL(url).pathname.endsWith('/klines') ? time : time + 60000)
+  ]))
+  await assert.rejects(BinanceFutures.getLiquidationLevels('BTCUSDT'), /not aligned by open time/)
+})
 
-  await assert.rejects(exchange.getLiquidationLevels({step: 0}), /"step"/)
-  await assert.rejects(exchange.getLiquidationLevels({leverages: [10, 10]}), /"leverages"/)
-  await assert.rejects(exchange.getLiquidationLevels({maintenanceMarginRate: 0.02}), /"maintenanceMarginRate"/)
-  await assert.rejects(exchange.getLiquidationLevels({limit: 1501}), /"limit"/)
-  assert.equal(calls, 0)
+test('invalid liquidation parameters are rejected before fetching', async t => {
+  const fetch = t.mock.method(globalThis, 'fetch', unexpectedRequest)
+  for (const [invalid, error] of [
+    [{step: 0}, /"step"/], [{leverages: [10, 10]}, /"leverages"/],
+    [{maintenanceMarginRate: 0.02}, /"maintenanceMarginRate"/], [{limit: 1501}, /"limit"/]
+  ]) {
+    await assert.rejects(BinanceFutures.getLiquidationLevels('BTCUSDT', invalid), error)
+  }
+  assert.equal(fetch.mock.callCount(), 0)
 })

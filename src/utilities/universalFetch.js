@@ -36,6 +36,14 @@ export const getEngine = () => {
 
 export const universalFetch = async (main, pathname, method, payload, version) => {
 
+  const isPublic = publicEndpoints.includes(pathname)
+  if (!isPublic && (
+    typeof main.API_KEY !== 'string' || !main.API_KEY.trim() ||
+    typeof main.API_SECRET !== 'string' || !main.API_SECRET.trim()
+  )) {
+    throw new Error(`Endpoint "${pathname}" requires an authenticated BinanceFutures instance.`)
+  }
+
   if(typeof main.assertRateLimitAvailable === 'function') {
     main.assertRateLimitAvailable()
   }
@@ -48,7 +56,7 @@ export const universalFetch = async (main, pathname, method, payload, version) =
     basePayload.symbol = main.contractName
   }
 
-  if (!publicEndpoints.includes(pathname)) {
+  if (!isPublic) {
     let timestamp = Date.now()
 
     if (main.useServerTime) {
@@ -67,13 +75,13 @@ export const universalFetch = async (main, pathname, method, payload, version) =
 
   let signedQuery = queryString
 
-  if (!publicEndpoints.includes(pathname)) {
+  if (!isPublic) {
     const signature = await getSignature(main, queryString)
     signedQuery = `${queryString}&signature=${signature}`
   }
 
   // Prepare request options
-  const headers = !publicEndpoints.includes(pathname) ? { 'X-MBX-APIKEY': main.API_KEY } : {}
+  const headers = !isPublic ? { 'X-MBX-APIKEY': main.API_KEY } : {}
 
   let finalUrl
   const options = { method, headers}

@@ -1,208 +1,84 @@
 import assert from 'node:assert/strict'
-import crypto from 'node:crypto'
 import test from 'node:test'
+import BinanceFutures, {RateLimitError} from '../index.js'
+import {createExchange, jsonResponse, mockAppsScript} from './helpers.js'
 
-import BinanceFutures from '../index.js'
-import RateLimitError from '../src/utilities/RateLimitError.js'
-import {validateStrategy} from '../src/utilities/validators.js'
-
-const credentials = {
-  testnet: {
-    API_KEY: 'rate-limit-test-key',
-    API_SECRET: 'rate-limit-test-secret'
-  }
+for (const status of [429, 418]) {
+  test(`${status} starts a cooldown and blocks repeat requests`, async t => {
+    const fetch = t.mock.fn(async () => jsonResponse({code: -1003}, status, {
+      'retry-after': '120', 'x-mbx-used-weight-1m': '2400'
+    }))
+    const exchange = createExchange({fetch})
+    await assert.rejects(exchange.getServerTime(), {
+      name: 'RateLimitError', status, retryAfterSeconds: 120, isLocalCooldown: false
+    })
+    assert.equal(exchange.rateLimitUsage['x-mbx-used-weight-1m'], 2400)
+    await assert.rejects(exchange.getServerTime(), {
+      name: 'RateLimitError', status, isLocalCooldown: true
+    })
+    assert.equal(fetch.mock.callCount(), 1)
+  })
 }
 
-const strategy = overrides => ({
-  environment: 'testnet',
-  symbol: 'BTC',
-  settlementCurrency: 'USDT',
-  ...overrides
-})
-
-const response = ({status, body, headers = {}, statusText = ''}) => ({
-  status,
-  statusText,
-  headers,
-  text: async () => JSON.stringify(body)
-})
-
-const createExchange = ({fetch, rateLimitCoolDownSeconds = 60} = {}) => new BinanceFutures(
-  credentials,
-  strategy({rateLimitCoolDownSeconds}),
-  {
-    crypto,
-    fetch: fetch ?? (async () => response({status: 200, body: {serverTime: 1}}))
-  }
-)
-
-test('429 Retry-After locks the instance and preserves structured errors', async () => {
-  let requests = 0
+test('missing Retry-After uses the configured cooldown', async () => {
   const exchange = createExchange({
-    fetch: async () => {
-      requests++
-      return response({
-        status: 429,
-        statusText: 'Too Many Requests',
-        headers: {
-          'retry-after': '120',
-          'x-mbx-used-weight-1m': '2400'
-        },
-        body: {code: -1003, msg: 'Too many requests'}
-      })
-    }
+    strategy: {rateLimitCoolDownSeconds: 17},
+    fetch: async () => jsonResponse({code: -1003}, 429)
   })
-
-  await assert.rejects(
-    exchange.getServerTime(),
-    error => {
-      assert.ok(error instanceof RateLimitError)
-      assert.equal(error.status, 429)
-      assert.equal(error.retryAfterSeconds, 120)
-      assert.equal(error.rateLimitUsage['x-mbx-used-weight-1m'], 2400)
-      assert.equal(error.isLocalCooldown, false)
-      return true
-    }
-  )
-
-  await assert.rejects(
-    exchange.getServerTime(),
-    error => {
-      assert.ok(error instanceof RateLimitError)
-      assert.equal(error.isLocalCooldown, true)
-      assert.ok(error.retryAfterSeconds > 0)
-      return true
-    }
-  )
-  assert.equal(requests, 1)
+  await assert.rejects(exchange.getServerTime(), {retryAfterSeconds: 17})
 })
 
-test('missing Retry-After uses rateLimitCoolDownSeconds', async () => {
-  const exchange = createExchange({
-    rateLimitCoolDownSeconds: 17,
-    fetch: async () => response({
-      status: 429,
-      body: {code: -1003, msg: 'Too many requests'}
-    })
-  })
-
-  await assert.rejects(
-    exchange.fetch('time'),
-    error => {
-      assert.equal(error.retryAfterSeconds, 17)
-      return true
-    }
-  )
-})
-
-test('418 responses create an IP-ban cooldown', async () => {
-  const exchange = createExchange({
-    fetch: async () => response({
-      status: 418,
-      headers: {'retry-after': '180'},
-      body: {code: -1003, msg: 'IP banned'}
-    })
-  })
-
-  await assert.rejects(
-    exchange.fetch('time'),
-    error => {
-      assert.ok(error instanceof RateLimitError)
-      assert.equal(error.status, 418)
-      assert.equal(error.retryAfterSeconds, 180)
-      return true
-    }
-  )
-})
-
-test('a shorter rate-limit response never shortens an active lock', () => {
+test('a shorter response never shortens an active lock', () => {
   const exchange = createExchange()
-  const firstLock = exchange.lockRateLimit({status: 418, retryAfterSeconds: 300})
-  const secondLock = exchange.lockRateLimit({status: 429, retryAfterSeconds: 5})
-
-  assert.ok(secondLock.lockedUntil >= firstLock.lockedUntil)
-  assert.ok(secondLock.retryAfterSeconds >= 299)
+  const first = exchange.lockRateLimit({status: 418, retryAfterSeconds: 300})
+  const second = exchange.lockRateLimit({status: 429, retryAfterSeconds: 5})
+  assert.equal(second.lockedUntil, first.lockedUntil)
 })
 
-test('successful responses expose Binance weight and order-count headers', async () => {
-  const exchange = createExchange({
-    fetch: async () => response({
-      status: 200,
-      headers: {
-        'X-MBX-USED-WEIGHT-1M': '42',
-        'X-MBX-ORDER-COUNT-10S': '3'
-      },
-      body: {serverTime: 1}
-    })
-  })
-
+test('successful responses expose weight and order-count headers', async () => {
+  const exchange = createExchange({fetch: async () => jsonResponse({serverTime: 1}, 200, {
+    'X-MBX-USED-WEIGHT-1M': '42', 'X-MBX-ORDER-COUNT-10S': '3'
+  })})
   await exchange.getServerTime()
-
   assert.equal(exchange.rateLimitUsage['x-mbx-used-weight-1m'], 42)
   assert.equal(exchange.rateLimitUsage['x-mbx-order-count-10s'], 3)
   assert.ok(Number.isFinite(exchange.rateLimitUsage.observedAt))
 })
 
-test('Apps Script GET requests inspect errors using muteHttpExceptions', async () => {
-  const originalUrlFetchApp = globalThis.UrlFetchApp
-  let receivedOptions
-  const exchange = createExchange({rateLimitCoolDownSeconds: 9})
-  const storedProperties = new Map()
-  exchange.engine = 'google-apps-script'
-  exchange.isGAS = true
-  exchange.cache = null
-  exchange.PropertiesService = {
-    getProperty: key => storedProperties.get(key) ?? null,
-    setProperty: (key, value) => storedProperties.set(key, value),
-    deleteProperty: key => storedProperties.delete(key)
-  }
-  globalThis.UrlFetchApp = {
-    fetch: (url, options) => {
-      receivedOptions = options
-      return {
-        getResponseCode: () => 429,
-        getContentText: () => JSON.stringify({code: -1003}),
-        getAllHeaders: () => ({'Retry-After': '11'})
-      }
-    }
-  }
-
-  try {
-    await assert.rejects(
-      exchange.fetch('time'),
-      error => {
-        assert.ok(error instanceof RateLimitError)
-        assert.equal(error.retryAfterSeconds, 11)
-        return true
-      }
-    )
-    assert.equal(receivedOptions.muteHttpExceptions, true)
-    assert.ok(Number(storedProperties.get(exchange.rateLimitStateKey)) > Date.now())
-
-    const nextExecution = createExchange()
-    nextExecution.cache = null
-    nextExecution.PropertiesService = exchange.PropertiesService
-    assert.throws(
-      () => nextExecution.assertRateLimitAvailable(),
-      error => {
-        assert.ok(error instanceof RateLimitError)
-        assert.equal(error.isLocalCooldown, true)
-        return true
-      }
-    )
-  } finally {
-    if(originalUrlFetchApp === undefined) delete globalThis.UrlFetchApp
-    else globalThis.UrlFetchApp = originalUrlFetchApp
-  }
+test('Apps Script persists the cooldown for later clients', async t => {
+  const {cache, properties, fetch} = mockAppsScript(t, {
+    body: {code: -1003}, status: 429, headers: {'Retry-After': '11'}
+  })
+  const exchange = createExchange()
+  await assert.rejects(exchange.getServerTime(), {name: 'RateLimitError', retryAfterSeconds: 11})
+  assert.equal(fetch.mock.calls[0].arguments[1].muteHttpExceptions, true)
+  assert.ok(Number(properties.get(exchange.rateLimitStateKey)) > Date.now())
+  cache.values.clear()
+  const nextExecution = createExchange()
+  await assert.rejects(nextExecution.getServerTime(), {name: 'RateLimitError', isLocalCooldown: true})
+  assert.equal(fetch.mock.callCount(), 1)
 })
 
-test('rateLimitCoolDownSeconds must be a positive integer', () => {
-  assert.throws(
-    () => validateStrategy(strategy({rateLimitCoolDownSeconds: 0})),
-    /rateLimitCoolDownSeconds/
-  )
-  assert.throws(
-    () => validateStrategy(strategy({rateLimitCoolDownSeconds: 1.5})),
-    /rateLimitCoolDownSeconds/
-  )
+test('static cooldown survives new calls for other symbols on the same endpoint', async t => {
+  let now = 1800000000000
+  t.mock.method(Date, 'now', () => now)
+  let requests = 0
+  const options = {proxy: 'https://cooldown.example', callbacks: {fetch: async () => {
+    requests++
+    return jsonResponse({}, 418, {'retry-after': '10'})
+  }}}
+  await assert.rejects(BinanceFutures.getServerTime(options), error => (
+    error instanceof RateLimitError && error.status === 418 && !error.isLocalCooldown
+  ))
+  await assert.rejects(BinanceFutures.ohlcv('ETHUSDT', {interval: '1m'}, options), error => (
+    error instanceof RateLimitError && error.status === 418 && error.isLocalCooldown
+  ))
+  assert.equal(requests, 1)
+  assert.equal(BinanceFutures.getRateLimitRemainingSeconds(options), 10)
+  assert.equal(BinanceFutures.getRateLimitRemainingSeconds({environment: 'testnet'}), 0)
+  now += 10001
+  assert.equal(BinanceFutures.getRateLimitRemainingSeconds(options), 0)
+  assert.equal(await BinanceFutures.getServerTime({...options, callbacks: {
+    fetch: async () => jsonResponse({serverTime: 789})
+  }}), 789)
 })
