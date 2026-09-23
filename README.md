@@ -82,6 +82,25 @@ const prices = await BinanceFutures.ohlcv('ETHUSDT', [
 ], options)
 ```
 
+To route OHLCV through a proxy, pass lowercase `proxy` in the third argument:
+
+```js
+const marketOptions = {
+  environment: 'testnet',
+  proxy: 'https://my-proxy.example.com'
+}
+
+const candles = await BinanceFutures.ohlcv(
+  'BTCUSDT',
+  {interval: '1h', limit: 100},
+  marketOptions
+)
+```
+
+The library appends `/fapi/v1/klines` and the query parameters to the proxy URL. Supply the base URL without `/fapi`. Without a proxy, `environment` selects Binance production or testnet; omitting `environment` defaults to production. **A supplied proxy overrides the Binance base URL.** Configure the proxy itself to forward to the intended Binance environment; the `environment` option does not select the proxy's destination.
+
+Reuse `marketOptions` for subsequent calls. In Google Apps Script, use the same arguments with `BinanceFutures.default.ohlcv(...)`.
+
 Node.js uses its global `fetch` by default for static calls; supply `options.callbacks.fetch` to inject another Fetch implementation. Google Apps Script uses `UrlFetchApp`. Connection options and callbacks belong to each call; there is no global configuration to switch between symbols or environments.
 
 Trading instances inherit the same market-data implementation and use their configured contract. `exchange.ohlcv(params)` updates that instance's `latestPrice` for order sizing; a static call has no effect on a trading instance. Account data, leverage brackets, and order actions require an authenticated instance.
