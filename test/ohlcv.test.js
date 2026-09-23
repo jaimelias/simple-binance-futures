@@ -3,7 +3,6 @@ import crypto from 'node:crypto'
 import test from 'node:test'
 
 import BinanceFutures from '../index.js'
-import { millisecondsToDateStr } from '../src/utilities/utilities.js'
 
 const createExchange = () => new BinanceFutures(
   {
@@ -40,7 +39,7 @@ const candle = ({time = 1789862400000, close = '60000.00'} = {}) => [
   '0'
 ]
 
-test('ohlcv sends Binance timestamps as epoch milliseconds and preserves limit', async () => {
+test('ohlcv sends and returns Binance timestamps as epoch milliseconds and preserves limit', async () => {
   const exchange = createExchange()
   let request
 
@@ -49,7 +48,7 @@ test('ohlcv sends Binance timestamps as epoch milliseconds and preserves limit',
     return [candle()]
   }
 
-  await exchange.ohlcv({
+  const candles = await exchange.ohlcv({
     interval: '1h',
     startTime: '2026-09-20T00:00:00Z',
     endTime: new Date('2026-09-20T08:00:00Z'),
@@ -66,6 +65,7 @@ test('ohlcv sends Binance timestamps as epoch milliseconds and preserves limit',
       endTime: 1789891200000
     }
   })
+  assert.equal(candles[0].date, 1789862400000)
 })
 
 test('ohlcv accepts independently optional time parameters and rejects ambiguous times', async () => {
@@ -146,8 +146,4 @@ test('ohlcv rejects duplicate batch intervals instead of overwriting results', a
     /Duplicate "interval"/
   )
   assert.equal(requestCount, 0)
-})
-
-test('millisecondsToDateStr always formats UTC', () => {
-  assert.equal(millisecondsToDateStr(1789862400000), '2026-09-20 00:00:00')
 })

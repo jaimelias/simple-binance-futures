@@ -181,7 +181,7 @@ const candles = await exchange.ohlcv({
 //   high: 64500,
 //   low: 63800,
 //   close: 64300,
-//   date: '2026-09-22 14:00:00', // UTC
+//   date: 1790085600000, // candle opening time in epoch milliseconds
 //   volume: 1234.56
 // }
 ```

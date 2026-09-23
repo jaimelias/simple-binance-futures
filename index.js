@@ -16,7 +16,6 @@ import { createLimitOrder } from './src/actions/createLimitOrder.js'
 import { createStopLimitOrder } from './src/actions/createStopLimitOrder.js'
 import { createTakeProfitOrder } from './src/actions/createTakeProfitOrder.js'
 import { createStopLossOrder } from './src/actions/createStopLossOrder.js'
-import { millisecondsToDateStr } from './src/utilities/utilities.js'
 import { closePosition } from './src/actions/closePosition.js'
 import { createMarketOrder } from './src/actions/createMarketOrder.js'
 import { modifyLimitOrder } from './src/actions/modifyLimitOrder.js'
@@ -710,7 +709,7 @@ export default class BinanceFutures {
             high:  +h,
             low:   +l,
             close: +c,
-            date:  millisecondsToDateStr(t),
+            date:  t,
           }
           
           if (includeVol) {
