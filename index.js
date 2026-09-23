@@ -22,6 +22,11 @@ import { modifyLimitOrder } from './src/actions/modifyLimitOrder.js'
 import ErrorHandler from './src/utilities/ErrorHandler.js'
 import RateLimitError from './src/utilities/RateLimitError.js'
 import {
+  estimateLiquidationLevels,
+  liquidationLevelsDefaults,
+  validateLiquidationLevelsOptions
+} from './src/utilities/liquidationLevels.js'
+import {
   assertFundingEntryAllowed,
   checkFundingRisk,
   evaluateFundingRisk,
@@ -730,6 +735,30 @@ export default class BinanceFutures {
         return output
       })
 
+    }
+
+    async getLiquidationLevels(options = {}) {
+      return this.errorHandler.init(async () => {
+        if(!isPlainObject(options)) {
+          throw new Error('"getLiquidationLevels" options must be an object.')
+        }
+
+        const params = {...liquidationLevelsDefaults, ...options}
+        validateLiquidationLevelsOptions(params)
+
+        const args = {interval: params.interval, limit: params.limit}
+        const tradeKlines = await this.fetch('klines', 'GET', args)
+        const markKlines = await this.fetch('markPriceKlines', 'GET', args)
+
+        return estimateLiquidationLevels({
+          tradeKlines,
+          markKlines,
+          step: params.step,
+          top: params.top,
+          leverages: params.leverages,
+          maintenanceMarginRate: params.maintenanceMarginRate
+        })
+      })
     }
 
     async cancelAllOpenedOrders(){

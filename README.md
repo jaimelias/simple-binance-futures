@@ -10,6 +10,7 @@ A JavaScript client for trading USDT-M perpetual contracts on Binance Futures fr
 - Market, limit, and stop-limit orders.
 - Stop-loss and take-profit orders for open positions.
 - Contract, mark price, index price, premium index, and continuous-contract candles.
+- Estimated liquidation-level clusters from trade volume and mark-price candles.
 - Optional protection against harmful funding rates.
 - Handles `429` and `418` responses without automatically retrying orders.
 - Contract information and leverage-bracket caching in Google Apps Script.
@@ -219,6 +220,27 @@ console.log(prices['5m'], prices['1h'])
 ```
 
 `volume` is only included for `klines` and `continuousKlines`. Recent requests update `exchange.latestPrice`; historical requests and `premiumIndexKlines` do not overwrite it.
+
+### `getLiquidationLevels(options)`
+
+Estimates potential liquidation clusters for the configured symbol. This uses traded base-asset volume as a **score**, not as open position size or liquidation volume. It assumes equal long/short and leverage shares, a fixed maintenance margin rate, and isolated margin with no added collateral or fees. Binance does not disclose each trader's entry, leverage, margin, or position lifecycle through candle data, so these levels are not actual positions or a Coinglass/Hyblock heatmap. Do not use the scores as a risk or order-sizing measure.
+
+```js
+const levels = await exchange.getLiquidationLevels({
+  interval: '1h',
+  limit: 500,
+  step: 50, // USDT per bucket; omit for 0.1% of the latest closed mark price
+  leverages: [5, 10, 25, 50, 100],
+  maintenanceMarginRate: 0.004,
+  top: 10
+})
+
+// { method: 'volumeProxy', step: 50, candleCount: 500,
+//   longLiquidations: [{price: ..., score: ...}],
+//   shortLiquidations: [{price: ..., score: ...}] }
+```
+
+The method fetches regular and mark-price candles through the existing Binance client. It uses the mark-price close as the hypothetical entry, tests later mark-price highs/lows for a level touch, and excludes the current open candle as an entry source while using its observed range to invalidate older levels. `step` is an absolute price bucket width; `top` limits each side. The default leverage set is `[5, 10, 25, 50, 100]`, and the default maintenance margin rate is `0.004`. The fixed rate is only an assumption; actual maintenance rates and amounts vary by notional bracket and account state.
 
 ## Account and leverage
 

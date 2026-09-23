@@ -11,5 +11,7 @@ extends = ":workspace"
 glob_scan_max_depth = 12
 
 [permissions.workspace-filtered.filesystem.":workspace_roots"]
+"**/node_modules/**" = "deny"
 "**/.git/**" = "deny"
 "**/dist/**" = "deny"
+"**/dist/google-apps-script-build.js" = "deny"
